@@ -1,0 +1,251 @@
+.app-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 24%),
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.10), transparent 20%),
+    linear-gradient(180deg, #f8fbff 0%, #f3f7fb 100%);
+  padding: 24px;
+}
+
+.app-shell-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(255,255,255,0.55), transparent 18%),
+    radial-gradient(circle at 80% 0%, rgba(255,255,255,0.35), transparent 20%);
+}
+
+.topnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+  margin-bottom: 22px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 24px;
+  background: rgba(255,255,255,0.84);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.topnav-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, #2563eb, #0f766e);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+}
+
+.brand-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.brand-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.topnav-menu {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.topnav-link {
+  padding: 10px 14px;
+  border-radius: 999px;
+  color: #334155;
+  font-weight: 700;
+  transition: 0.2s ease;
+  background: transparent;
+}
+
+.topnav-link:hover {
+  background: #eaf2ff;
+  color: #1d4ed8;
+}
+
+.topnav-link.active {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.18);
+}
+
+.topnav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.system-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #166534;
+  font-weight: 700;
+  border: 1px solid #bbf7d0;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+}
+
+.page-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.page-hero-title {
+  margin: 0;
+  font-size: 36px;
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+}
+
+.page-hero-subtitle {
+  margin: 10px 0 0;
+  max-width: 720px;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.page-content {
+  display: grid;
+  gap: 24px;
+}
+
+.metric-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -20px -20px auto;
+  width: 90px;
+  height: 90px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(37,99,235,0.12), transparent 65%);
+}
+
+.metric-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.metric-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.metric-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.state-pill {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.control-card {
+  min-height: 270px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.secondary-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.secondary-btn:hover {
+  background: #cbd5e1;
+}
+
+.preset-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 900px) {
+  .topnav {
+    padding: 14px;
+  }
+
+  .page-hero-title {
+    font-size: 30px;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    padding: 16px;
+  }
+
+  .topnav,
+  .page-hero {
+    gap: 14px;
+  }
+
+  .brand-title {
+    font-size: 16px;
+  }
+
+  .page-hero-title {
+    font-size: 26px;
+  }
+
+  .topnav-menu {
+    width: 100%;
+  }
+}
