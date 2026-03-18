@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export default function SettingsPanel({ theme = "dark", onUpdated }) {
+export default function SettingsPanel({ theme = "dark", onUpdated, embedded = false }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState("");
@@ -17,14 +17,12 @@ export default function SettingsPanel({ theme = "dark", onUpdated }) {
       const res = await fetch("/api/settings", { cache: "no-store" });
       const json = await res.json();
 
-      if (!json.success) {
-        throw new Error(json.message || "Không lấy được settings");
-      }
+      if (!json.success) throw new Error(json.message || "Unable to load settings");
 
       setItems(json.data || []);
     } catch (err) {
       console.error(err);
-      setError(err.message || "Lỗi tải settings");
+      setError(err.message || "Failed to load settings");
     } finally {
       setLoading(false);
     }
@@ -65,22 +63,24 @@ export default function SettingsPanel({ theme = "dark", onUpdated }) {
       const json = await res.json();
 
       if (!json.success) {
-        throw new Error(json.message || json.error || "Lưu thất bại");
+        throw new Error(json.message || json.error || "Save failed");
       }
 
-      setMessage(`Đã lưu cấu hình cho ${item.display_name}`);
+      setMessage(`Saved configuration for ${item.display_name}`);
       if (onUpdated) onUpdated();
     } catch (err) {
       console.error(err);
-      setError(err.message || "Không lưu được cấu hình");
+      setError(err.message || "Unable to save configuration");
     } finally {
       setSavingKey("");
     }
   }
 
   return (
-    <section style={{ marginBottom: "28px" }}>
-      <h2 style={{ fontSize: "24px", marginBottom: "16px" }}>Settings / Threshold Config</h2>
+    <section style={{ marginBottom: embedded ? "0" : "28px" }}>
+      {!embedded ? (
+        <h2 style={{ fontSize: "24px", marginBottom: "16px" }}>Settings / Threshold Config</h2>
+      ) : null}
 
       <div
         style={{
@@ -93,7 +93,7 @@ export default function SettingsPanel({ theme = "dark", onUpdated }) {
             : "0 8px 24px rgba(15,23,42,0.08)",
         }}
       >
-        {loading && <div>Đang tải cấu hình...</div>}
+        {loading && <div>Loading configuration...</div>}
         {error && (
           <div
             style={{
@@ -169,7 +169,7 @@ export default function SettingsPanel({ theme = "dark", onUpdated }) {
                     opacity: savingKey === item.metric_key ? 0.7 : 1,
                   }}
                 >
-                  {savingKey === item.metric_key ? "Đang lưu..." : "Lưu"}
+                  {savingKey === item.metric_key ? "Saving..." : "Save"}
                 </button>
               </div>
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
 import { ensureAuthTables } from "../../lib/authStore";
-import { generateSessionToken, verifyPassword } from "../../lib/auth";
+import { generateSessionToken, hashPassword } from "../../lib/auth";
 
 export const runtime = "nodejs";
 
@@ -11,42 +11,52 @@ export async function POST(request) {
 
     const body = await request.json();
     const username = String(body?.username || "").trim();
+    const email = String(body?.email || "").trim().toLowerCase();
     const password = String(body?.password || "").trim();
 
     if (!username || !password) {
       return NextResponse.json(
-        { success: false, message: "Vui lòng nhập đầy đủ username và password" },
+        { success: false, message: "Vui lòng nhập tên đăng nhập và mật khẩu" },
         { status: 400 }
       );
     }
 
-    const userResult = await pool.query(
+    if (password.length < 8) {
+      return NextResponse.json(
+        { success: false, message: "Mật khẩu phải có ít nhất 8 ký tự" },
+        { status: 400 }
+      );
+    }
+
+    const existing = await pool.query(
       `
-        SELECT id, username, email, password_hash
+        SELECT id
         FROM app_users
-        WHERE username = $1 OR LOWER(email) = LOWER($1)
+        WHERE username = $1 OR ($2 <> '' AND email = $2)
         LIMIT 1
       `,
-      [username]
+      [username, email]
     );
 
-    if (userResult.rows.length === 0) {
+    if (existing.rows.length > 0) {
       return NextResponse.json(
-        { success: false, message: "Sai tài khoản hoặc mật khẩu" },
-        { status: 401 }
+        { success: false, message: "Tài khoản hoặc email đã tồn tại" },
+        { status: 409 }
       );
     }
 
-    const user = userResult.rows[0];
-    const valid = verifyPassword(password, user.password_hash);
+    const passwordHash = hashPassword(password);
 
-    if (!valid) {
-      return NextResponse.json(
-        { success: false, message: "Sai tài khoản hoặc mật khẩu" },
-        { status: 401 }
-      );
-    }
+    const created = await pool.query(
+      `
+        INSERT INTO app_users (username, email, password_hash)
+        VALUES ($1, NULLIF($2, ''), $3)
+        RETURNING id, username, email
+      `,
+      [username, email, passwordHash]
+    );
 
+    const user = created.rows[0];
     const sessionToken = generateSessionToken();
 
     await pool.query(
@@ -59,11 +69,8 @@ export async function POST(request) {
 
     const response = NextResponse.json({
       success: true,
-      message: "Đăng nhập thành công",
-      data: {
-        username: user.username,
-        email: user.email,
-      },
+      message: "Đăng ký thành công",
+      data: { username: user.username, email: user.email },
     });
 
     response.cookies.set("session", sessionToken, {
@@ -79,7 +86,7 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: false,
-        message: "Lỗi đăng nhập",
+        message: "Đăng ký thất bại",
         error: error.message,
       },
       { status: 500 }

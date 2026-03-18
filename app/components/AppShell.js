@@ -1,4 +1,5 @@
 import TopNav from "./TopNav";
+import SiteFooter from "./SiteFooter";
 
 export default function AppShell({ title, subtitle, children, actions = null }) {
   return (
@@ -17,6 +18,8 @@ export default function AppShell({ title, subtitle, children, actions = null }) 
         </section>
 
         <section className="page-content">{children}</section>
+
+        <SiteFooter />
       </div>
     </main>
   );

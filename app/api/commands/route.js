@@ -1,4 +1,5 @@
 import { pool } from "../../lib/db";
+import { appendMetricHistory } from "../../lib/metricHistory";
 
 export const runtime = "nodejs";
 
@@ -140,6 +141,8 @@ export async function POST(request) {
       `,
       [feed_key, value_num, value_text]
     );
+
+    await appendMetricHistory(feed_key, value_num, value_text);
 
     const { eventName, details } = buildEvent(feed_key, value);
 

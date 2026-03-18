@@ -2,22 +2,28 @@ import { NextResponse } from "next/server";
 
 export function middleware(request) {
   const session = request.cookies.get("session")?.value;
-  const isLoggedIn = session === "logged_in";
+  const isLoggedIn = Boolean(session);
   const pathname = request.nextUrl.pathname;
 
   const isLoginPage = pathname === "/login";
+  const isRegisterPage = pathname === "/register";
+  const isForgotPage = pathname === "/forgot-password";
+  const isResetPage = pathname === "/reset-password";
   const isLoginApi = pathname.startsWith("/api/login");
   const isLogoutApi = pathname.startsWith("/api/logout");
+  const isRegisterApi = pathname.startsWith("/api/register");
+  const isForgotApi = pathname.startsWith("/api/forgot-password");
+  const isResetApi = pathname.startsWith("/api/reset-password");
 
-  if (isLoginApi || isLogoutApi) {
+  if (isLoginApi || isLogoutApi || isRegisterApi || isForgotApi || isResetApi) {
     return NextResponse.next();
   }
 
-  if (!isLoggedIn && !isLoginPage) {
+  if (!isLoggedIn && !isLoginPage && !isRegisterPage && !isForgotPage && !isResetPage) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (isLoggedIn && isLoginPage) {
+  if (isLoggedIn && (isLoginPage || isRegisterPage || isForgotPage || isResetPage)) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

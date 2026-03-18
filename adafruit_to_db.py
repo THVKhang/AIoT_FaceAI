@@ -41,6 +41,25 @@ db_lock = threading.Lock()
 last_state_cache = {}
 
 
+def ensure_metric_history_table():
+    sql = """
+        CREATE TABLE IF NOT EXISTS metric_history (
+            id BIGSERIAL PRIMARY KEY,
+            feed_key VARCHAR(50) NOT NULL,
+            value_num REAL,
+            value_text TEXT,
+            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_metric_history_feed_time
+        ON metric_history(feed_key, updated_at DESC);
+    """
+
+    with db_lock:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+
+
 def get_connection():
     conn = psycopg2.connect(
         host=DB_HOST,
@@ -115,6 +134,13 @@ def upsert_current_state(feed_key: str, payload: str):
     with db_lock:
         with conn.cursor() as cur:
             cur.execute(sql, (feed_key, value_num, value_text))
+            cur.execute(
+                """
+                    INSERT INTO metric_history (feed_key, value_num, value_text, updated_at)
+                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                """,
+                (feed_key, value_num, value_text),
+            )
 
     last_state_cache[feed_key] = payload
 
@@ -156,7 +182,7 @@ def handle_sensor(feed_key: str, payload: str):
         if str(payload) == "1":
             insert_system_log(
                 "Motion Detected",
-                "adafruit",
+                "rule-engine",
                 "warning",
                 "Phát hiện chuyển động trước cửa",
             )
@@ -166,11 +192,20 @@ def handle_sensor(feed_key: str, payload: str):
         if light_value is not None and light_value < 200:
             insert_system_log(
                 "Low Light",
-                "adafruit",
+                "rule-engine",
                 "warning",
                 f"sensor-light = {light_value}, thấp hơn ngưỡng 200",
             )
 
+    elif feed_key == "sensor-temp":
+        temp_value = to_number_or_none(payload)
+        if temp_value is not None and temp_value > 35:
+            insert_system_log(
+                "High Temperature",
+                "rule-engine",
+                "warning",
+                f"sensor-temp = {temp_value}, vượt ngưỡng 35",
+            )
 
 def handle_command(feed_key: str, payload: str):
     upsert_current_state(feed_key, payload)
@@ -210,6 +245,13 @@ def handle_face_result(feed_key: str, payload: str):
             "Unknown face detected, unlock rejected",
         )
 
+        if str(last_state_cache.get("sensor-motion", "0")) == "1":
+            insert_system_log(
+                "Security Alert",
+                "ai",
+                "error",
+                "Motion detected with unknown face",
+            )
 
 def connected(client):
     print("✅ Kết nối Adafruit IO thành công!")
@@ -295,6 +337,7 @@ def main():
     try:
         conn = get_connection()
         print("✅ Kết nối PostgreSQL thành công")
+        ensure_metric_history_table()
     except Exception as e:
         print("❌ Không kết nối được PostgreSQL:", e)
         return

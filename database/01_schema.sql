@@ -18,6 +18,14 @@ CREATE TABLE IF NOT EXISTS current_state (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS metric_history (
+    id BIGSERIAL PRIMARY KEY,
+    feed_key VARCHAR(50) NOT NULL,
+    value_num REAL,
+    value_text TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS system_logs (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -57,3 +65,6 @@ ON access_logs(created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_current_state_updated_at
 ON current_state(updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_metric_history_feed_time
+ON metric_history(feed_key, updated_at DESC);

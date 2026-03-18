@@ -44,11 +44,30 @@ LEFT JOIN current_state c
     ON g.metric_key = c.feed_key
 ORDER BY g.metric_key;
 
+-- 7. Lich su metric cho line chart (gan nhat)
+WITH ranked AS (
+    SELECT
+        mh.feed_key,
+        mh.value_num,
+        mh.updated_at,
+        ROW_NUMBER() OVER (
+            PARTITION BY mh.feed_key
+            ORDER BY mh.updated_at DESC
+        ) AS rn
+    FROM metric_history mh
+    WHERE mh.value_num IS NOT NULL
+)
+SELECT feed_key, value_num, updated_at
+FROM ranked
+WHERE rn <= 18
+ORDER BY feed_key, updated_at ASC;
+
 
 
 
 SELECT * FROM gauge_config ORDER BY metric_key;
 SELECT * FROM current_state ORDER BY feed_key;
+SELECT * FROM metric_history ORDER BY updated_at DESC LIMIT 50;
 SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT 20;
 SELECT * FROM commands ORDER BY created_at DESC LIMIT 20;
 SELECT * FROM access_logs ORDER BY created_at DESC LIMIT 20;

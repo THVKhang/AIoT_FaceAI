@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "AIoT FaceAI Dashboard",
-  description: "YoloHome Smart Door Dashboard",
+  title: "AIoT FaceAI",
+  description: "YoloHome ",
 };
 
 export default function RootLayout({ children }) {

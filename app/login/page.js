@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -41,112 +43,86 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={styles.page}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Login</h1>
-        <p style={styles.subtitle}>AIoT FaceAI Dashboard</p>
+    <main className="login-v2-page">
+      <div className="login-v2-bg-overlay" aria-hidden="true" />
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.field}>
-            <label style={styles.label}>Username</label>
+      <section className="login-v2-card">
+        <div className="login-v2-header">
+          <div className="login-v2-logo-wrap" aria-hidden="true">
+            <svg viewBox="0 0 24 24" className="login-v2-logo">
+              <path
+                d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.744c0 5.578 3.65 10.301 8.659 11.895a11.977 11.977 0 008.659-11.895c0-1.303-.208-2.558-.598-3.738A11.952 11.952 0 0112 2.714z"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+              />
+            </svg>
+          </div>
+
+          <h1 className="login-v2-title">Đăng nhập hệ thống</h1>
+          <p className="login-v2-subtitle">FaceAI Smart Door Management</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="login-v2-form">
+          <div className="login-v2-field">
+            <label className="login-v2-label" htmlFor="username">Tên đăng nhập</label>
             <input
-              style={styles.input}
+              id="username"
+              name="username"
+              className="login-v2-input"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Nhập username"
+              placeholder="Nhập mã số cán bộ / sinh viên"
+              autoComplete="username"
+              required
             />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Password</label>
+          <div className="login-v2-field">
+            <label className="login-v2-label" htmlFor="password">Mật khẩu</label>
             <input
+              id="password"
+              name="password"
               type="password"
-              style={styles.input}
+              className="login-v2-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Nhập password"
+              autoComplete="current-password"
+              required
             />
           </div>
 
-          {error && <div style={styles.error}>{error}</div>}
+          <div className="login-v2-row">
+            <label className="login-v2-remember">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              <span>Ghi nhớ</span>
+            </label>
 
-          <button type="submit" style={styles.button} disabled={loading}>
+            <Link href="/forgot-password" className="login-v2-forgot-btn">
+              Quên mật khẩu?
+            </Link>
+          </div>
+
+          {error ? <div className="login-v2-error">{error}</div> : null}
+
+          <button type="submit" className="login-v2-submit" disabled={loading}>
             {loading ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
         </form>
-      </div>
+
+        <footer className="login-v2-footer">
+          <Link href="/register" className="login-v2-link">Tạo tài khoản</Link>
+          <span> • </span>
+          © 2026 Hệ thống Quản lý Cửa Thông minh FaceAI.
+        </footer>
+      </section>
     </main>
   );
 }
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#071226",
-    padding: "24px",
-    fontFamily: "Arial, sans-serif",
-  },
-  card: {
-    width: "100%",
-    maxWidth: "420px",
-    background: "#0f172a",
-    border: "1px solid #1e293b",
-    borderRadius: "18px",
-    padding: "28px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
-    color: "#f8fafc",
-  },
-  title: {
-    margin: 0,
-    fontSize: "32px",
-    fontWeight: "700",
-  },
-  subtitle: {
-    marginTop: "8px",
-    marginBottom: "24px",
-    color: "#94a3b8",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-  },
-  field: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-  },
-  label: {
-    fontWeight: "700",
-    fontSize: "14px",
-  },
-  input: {
-    padding: "12px 14px",
-    borderRadius: "12px",
-    border: "1px solid #334155",
-    background: "#111827",
-    color: "#f8fafc",
-    outline: "none",
-  },
-  button: {
-    marginTop: "8px",
-    border: "none",
-    borderRadius: "12px",
-    padding: "12px 16px",
-    background: "#22c55e",
-    color: "#08110b",
-    fontWeight: "700",
-    cursor: "pointer",
-  },
-  error: {
-    background: "#450a0a",
-    border: "1px solid #7f1d1d",
-    color: "#fecaca",
-    padding: "10px 12px",
-    borderRadius: "12px",
-    fontSize: "14px",
-  },
-};
