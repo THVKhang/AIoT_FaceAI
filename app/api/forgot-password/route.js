@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
-import { ensureAuthTables } from "../../lib/authStore";
 import { generateResetToken } from "../../lib/auth";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
-    await ensureAuthTables();
-
     const body = await request.json();
     const identity = String(body?.identity || "").trim();
 

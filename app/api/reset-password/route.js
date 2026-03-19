@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
-import { ensureAuthTables } from "../../lib/authStore";
 import { hashPassword, hashToken } from "../../lib/auth";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
-    await ensureAuthTables();
-
     const body = await request.json();
     const token = String(body?.token || "").trim();
     const newPassword = String(body?.newPassword || "").trim();

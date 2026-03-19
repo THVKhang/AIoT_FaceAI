@@ -212,3 +212,5 @@ __pycache__/
 node_modules/
 .next/
 package-lock.json
+.vercel
+.env*.local

@@ -1,4 +1,5 @@
 import { pool } from "../../lib/db";
+import { requireAuth } from "../../lib/sessionAuth";
 
 export const runtime = "nodejs";
 
@@ -8,8 +9,11 @@ function toNumber(value) {
   return Number.isNaN(n) ? NaN : n;
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.ok) return auth.response;
+
     const [gaugeResult, stateResult] = await Promise.all([
       pool.query(`
         SELECT metric_key, display_name, warn_low, warn_high, unit

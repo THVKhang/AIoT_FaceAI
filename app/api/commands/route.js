@@ -1,5 +1,6 @@
 import { pool } from "../../lib/db";
 import { appendMetricHistory } from "../../lib/metricHistory";
+import { requireRole } from "../../lib/sessionAuth";
 
 export const runtime = "nodejs";
 
@@ -102,6 +103,9 @@ async function insertFailedCommand(feedKey, value, reason) {
 
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ["admin"]);
+    if (!auth.ok) return auth.response;
+
     const body = await request.json();
     const feed_key = body?.feed_key;
     const rawValue = body?.value;

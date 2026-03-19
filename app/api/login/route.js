@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
-import { ensureAuthTables } from "../../lib/authStore";
 import { generateSessionToken, verifyPassword } from "../../lib/auth";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
-    await ensureAuthTables();
-
     const body = await request.json();
     const username = String(body?.username || "").trim();
     const password = String(body?.password || "").trim();
@@ -22,7 +19,7 @@ export async function POST(request) {
 
     const userResult = await pool.query(
       `
-        SELECT id, username, email, password_hash
+        SELECT id, username, email, role, password_hash
         FROM app_users
         WHERE username = $1 OR LOWER(email) = LOWER($1)
         LIMIT 1
@@ -63,10 +60,19 @@ export async function POST(request) {
       data: {
         username: user.username,
         email: user.email,
+        role: user.role,
       },
     });
 
     response.cookies.set("session", sessionToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    response.cookies.set("user_role", String(user.role || "user"), {
       httpOnly: true,
       secure: false,
       sameSite: "lax",

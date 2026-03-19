@@ -7,6 +7,7 @@ Database dùng để:
 - lưu log hệ thống để hiển thị Recent Activity / Alert / Log
 - lưu lịch sử lệnh điều khiển
 - lưu lịch sử AI nhận diện / mở cửa
+- lưu tài khoản đăng nhập, phiên đăng nhập và token reset mật khẩu
 
 ## 2. Danh sách bảng
 
@@ -72,6 +73,29 @@ Lưu lịch sử nhận diện khuôn mặt / mở cửa:
 - confidence
 - raw_value
 - created_at
+
+### app_users
+Lưu tài khoản người dùng cho đăng ký/đăng nhập:
+- username
+- email
+- password_hash (mật khẩu đã mã hóa)
+- role (admin hoặc user)
+- created_at
+- updated_at
+
+### auth_sessions
+Lưu phiên đăng nhập:
+- user_id
+- session_token
+- expires_at
+- revoked_at
+
+### password_reset_tokens
+Lưu token đặt lại mật khẩu:
+- user_id
+- token_hash
+- expires_at
+- used_at
 
 ## 3. Feed mapping
 

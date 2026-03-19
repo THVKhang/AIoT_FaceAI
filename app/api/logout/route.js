@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
-import { ensureAuthTables } from "../../lib/authStore";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
-  await ensureAuthTables();
-
   const sessionToken = request.cookies.get("session")?.value;
   if (sessionToken) {
     await pool.query(
@@ -25,6 +22,14 @@ export async function POST(request) {
   });
 
   response.cookies.set("session", "", {
+    httpOnly: true,
+    secure: false,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+
+  response.cookies.set("user_role", "", {
     httpOnly: true,
     secure: false,
     sameSite: "lax",

@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "db:init": "node scripts/run-sql-files.js",
+    "db:sql": "node scripts/run-sql-files.js"
   },
   "dependencies": {
     "next": "^15.0.0",

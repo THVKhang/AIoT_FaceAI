@@ -1,7 +1,11 @@
 import { pool } from "../../lib/db";
+import { requireAuth } from "../../lib/sessionAuth";
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.ok) return auth.response;
+
     const query = `
       SELECT
         g.metric_key,

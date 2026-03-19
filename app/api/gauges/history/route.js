@@ -1,8 +1,12 @@
 import { pool } from "../../../lib/db";
 import { ensureMetricHistoryTable } from "../../../lib/metricHistory";
+import { requireAuth } from "../../../lib/sessionAuth";
 
 export async function GET(request) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.ok) return auth.response;
+
     await ensureMetricHistoryTable();
 
     const { searchParams } = new URL(request.url);

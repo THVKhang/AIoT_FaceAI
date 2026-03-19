@@ -1,4 +1,5 @@
 import { pool } from "../../lib/db";
+import { requireAuth, requireRole } from "../../lib/sessionAuth";
 
 export const runtime = "nodejs";
 
@@ -11,8 +12,11 @@ function parseNullableNumber(value) {
   return n;
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.ok) return auth.response;
+
     const { rows } = await pool.query(`
       SELECT
         metric_key,
@@ -45,6 +49,9 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ["admin"]);
+    if (!auth.ok) return auth.response;
+
     const body = await request.json();
 
     const metric_key = String(body?.metric_key || "").trim();

@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
-import { ensureAuthTables } from "../../lib/authStore";
 import { generateSessionToken, hashPassword } from "../../lib/auth";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
-    await ensureAuthTables();
-
     const body = await request.json();
     const username = String(body?.username || "").trim();
     const email = String(body?.email || "").trim().toLowerCase();
@@ -49,9 +46,9 @@ export async function POST(request) {
 
     const created = await pool.query(
       `
-        INSERT INTO app_users (username, email, password_hash)
-        VALUES ($1, NULLIF($2, ''), $3)
-        RETURNING id, username, email
+        INSERT INTO app_users (username, email, password_hash, role)
+        VALUES ($1, NULLIF($2, ''), $3, 'user')
+        RETURNING id, username, email, role
       `,
       [username, email, passwordHash]
     );
@@ -70,10 +67,18 @@ export async function POST(request) {
     const response = NextResponse.json({
       success: true,
       message: "Đăng ký thành công",
-      data: { username: user.username, email: user.email },
+      data: { username: user.username, email: user.email, role: user.role },
     });
 
     response.cookies.set("session", sessionToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    response.cookies.set("user_role", String(user.role || "user"), {
       httpOnly: true,
       secure: false,
       sameSite: "lax",
