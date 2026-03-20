@@ -1,0 +1,46 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "LaTeX: Build report.tex",
+      "type": "shell",
+      "command": "C:\\Users\\Admin\\AppData\\Local\\Programs\\MiKTeX\\miktex\\bin\\x64\\miktex-pdflatex.exe",
+      "args": [
+        "-interaction=nonstopmode",
+        "-halt-on-error",
+        "report.tex"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "LaTeX: Build report (2 passes)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$pdflatex = 'C:\\Users\\Admin\\AppData\\Local\\Programs\\MiKTeX\\miktex\\bin\\x64\\miktex-pdflatex.exe'; & $pdflatex -interaction=nonstopmode -halt-on-error report.tex; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & $pdflatex -interaction=nonstopmode -halt-on-error report.tex"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "LaTeX: Clean aux files",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$files = @('report.aux','report.log','report.out','report.toc','report.fls','report.fdb_latexmk'); foreach ($f in $files) { if (Test-Path $f) { Remove-Item $f -Force } }"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}

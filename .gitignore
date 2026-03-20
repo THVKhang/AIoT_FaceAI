@@ -217,3 +217,19 @@ node_modules/
 package-lock.json
 .vercel
 .env*.local
+
+# LaTeX outputs
+Report/build/
+*.aux
+*.toc
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# ML artifacts
+ml/data/raw/
+ml/data/processed/
+ml/data/features/
+ml/experiments/
+ml/models/
