@@ -17,15 +17,27 @@ export async function POST(request) {
       );
     }
 
-    const userResult = await pool.query(
-      `
-        SELECT id, username, email
-        FROM app_users
-        WHERE username = $1 OR LOWER(email) = LOWER($1)
-        LIMIT 1
-      `,
-      [identity]
-    );
+    const looksLikeEmail = identity.includes("@");
+
+    const userResult = looksLikeEmail
+      ? await pool.query(
+          `
+            SELECT id, username, email
+            FROM app_users
+            WHERE LOWER(email) = LOWER($1)
+            ORDER BY id ASC
+          `,
+          [identity]
+        )
+      : await pool.query(
+          `
+            SELECT id, username, email
+            FROM app_users
+            WHERE username = $1
+            LIMIT 1
+          `,
+          [identity]
+        );
 
     const genericResponse = {
       success: true,
@@ -36,29 +48,30 @@ export async function POST(request) {
       return NextResponse.json(genericResponse);
     }
 
-    const user = userResult.rows[0];
-    const resetToken = generateResetToken();
+    for (const user of userResult.rows) {
+      const resetToken = generateResetToken();
 
-    await pool.query(
-      `
-        INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
-        VALUES ($1, $2, CURRENT_TIMESTAMP + INTERVAL '15 minutes')
-      `,
-      [user.id, resetToken.hash]
-    );
+      await pool.query(
+        `
+          INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+          VALUES ($1, $2, CURRENT_TIMESTAMP + INTERVAL '15 minutes')
+        `,
+        [user.id, resetToken.hash]
+      );
 
-    if (user.email && isMailerConfigured()) {
-      try {
-        await sendPasswordResetEmail({
-          toEmail: user.email,
-          username: user.username,
-          resetToken: resetToken.raw,
-        });
-      } catch (mailError) {
-        console.error("Forgot password email failed:", mailError);
+      if (user.email && isMailerConfigured()) {
+        try {
+          await sendPasswordResetEmail({
+            toEmail: user.email,
+            username: user.username,
+            resetToken: resetToken.raw,
+          });
+        } catch (mailError) {
+          console.error("Forgot password email failed:", mailError);
+        }
+      } else {
+        console.warn("Forgot password email skipped: SMTP not configured or user has no email");
       }
-    } else {
-      console.warn("Forgot password email skipped: SMTP not configured or user has no email");
     }
 
     return NextResponse.json(genericResponse);

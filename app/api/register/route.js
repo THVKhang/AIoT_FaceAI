@@ -30,15 +30,15 @@ export async function POST(request) {
       `
         SELECT id
         FROM app_users
-        WHERE username = $1 OR ($2 <> '' AND email = $2)
+        WHERE username = $1
         LIMIT 1
       `,
-      [username, email]
+      [username]
     );
 
     if (existing.rows.length > 0) {
       return NextResponse.json(
-        { success: false, message: "Tài khoản hoặc email đã tồn tại" },
+        { success: false, message: "Tên đăng nhập đã tồn tại" },
         { status: 409 }
       );
     }
