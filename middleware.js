@@ -16,11 +16,9 @@ export function middleware(request) {
   const isRegisterApi = pathname.startsWith("/api/register");
   const isForgotApi = pathname.startsWith("/api/forgot-password");
   const isResetApi = pathname.startsWith("/api/reset-password");
-  const isAdminPage = pathname.startsWith("/settings") || pathname.startsWith("/devices");
   const isAdminWriteApi =
     pathname.startsWith("/api/commands") ||
-    (pathname.startsWith("/api/settings") && method !== "GET") ||
-    pathname.startsWith("/api/logs");
+    (pathname.startsWith("/api/settings") && method !== "GET");
 
   if (isLoginApi || isLogoutApi || isRegisterApi || isForgotApi || isResetApi) {
     return NextResponse.next();
@@ -37,7 +35,7 @@ export function middleware(request) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (isLoggedIn && (isAdminPage || isAdminWriteApi) && role !== "admin") {
+  if (isLoggedIn && isAdminWriteApi && role !== "admin") {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { success: false, message: "Bạn không có quyền thực hiện thao tác này" },

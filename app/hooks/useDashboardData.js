@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AuthExpiredError,
   buildGaugeHistoryMap,
   buildStateMap,
   loadDashboardData,
@@ -94,6 +95,10 @@ export default function useDashboardData() {
       setLastUpdated(new Date());
     } catch (err) {
       console.error(err);
+      if (err instanceof AuthExpiredError) {
+        window.location.href = "/login";
+        return;
+      }
       setError(err.message || "Lỗi tải dashboard");
     } finally {
       setLoading(false);

@@ -1,3 +1,24 @@
+export class AuthExpiredError extends Error {
+  constructor(message = "Phiên đăng nhập đã hết hạn") {
+    super(message);
+    this.name = "AuthExpiredError";
+  }
+}
+
+async function parseApiResponse(response, fallbackMessage) {
+  const json = await response.json();
+
+  if (response.status === 401) {
+    throw new AuthExpiredError(json?.message || "Vui lòng đăng nhập lại");
+  }
+
+  if (!json?.success) {
+    throw new Error(json?.message || fallbackMessage);
+  }
+
+  return json;
+}
+
 export async function loadDashboardData() {
   const [gaugesRes, gaugeHistoryRes, stateRes, logsRes] = await Promise.all([
     fetch("/api/gauges", { cache: "no-store" }),
@@ -6,17 +27,20 @@ export async function loadDashboardData() {
     fetch("/api/logs?limit=12", { cache: "no-store" }),
   ]);
 
-  const [gaugesJson, gaugeHistoryJson, stateJson, logsJson] = await Promise.all([
-    gaugesRes.json(),
-    gaugeHistoryRes.json(),
-    stateRes.json(),
-    logsRes.json(),
+  const [gaugesJson, gaugeHistoryJson, stateJson] = await Promise.all([
+    parseApiResponse(gaugesRes, "Không lấy được gauges"),
+    parseApiResponse(gaugeHistoryRes, "Không lấy được gauge history"),
+    parseApiResponse(stateRes, "Không lấy được state"),
   ]);
 
-  if (!gaugesJson.success) throw new Error("Không lấy được gauges");
-  if (!gaugeHistoryJson.success) throw new Error("Không lấy được gauge history");
-  if (!stateJson.success) throw new Error("Không lấy được state");
-  if (!logsJson.success) throw new Error("Không lấy được logs");
+  let logsJson = { success: false, data: [] };
+  try {
+    logsJson = await parseApiResponse(logsRes, "Không lấy được logs");
+  } catch (error) {
+    if (error instanceof AuthExpiredError) {
+      throw error;
+    }
+  }
 
   return {
     gauges: gaugesJson.data || [],

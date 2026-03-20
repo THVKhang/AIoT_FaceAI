@@ -545,6 +545,60 @@ html.theme-dark {
   gap: 12px;
 }
 
+.admin-mode-btn {
+  border: 1.5px solid #fbbf24;
+  background: linear-gradient(135deg, #fef3c7, #fde68a);
+  color: #92400e;
+  border-radius: 999px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 800;
+  transition: 0.2s ease;
+}
+
+.admin-mode-btn:hover {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #fde68a, #fcd34d);
+}
+
+.admin-mode-btn.is-elevated {
+  border-color: #fb7185;
+  background: linear-gradient(135deg, #ffe4e6, #fecdd3);
+  color: #9f1239;
+}
+
+.admin-mode-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.admin-token-generate-btn {
+  border: 1.5px solid #38bdf8;
+  background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+  color: #0c4a6e;
+  border-radius: 999px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 800;
+  transition: 0.2s ease;
+}
+
+.admin-token-generate-btn:hover {
+  border-color: #0ea5e9;
+  background: linear-gradient(135deg, #bae6fd, #7dd3fc);
+}
+
+.admin-token-generate-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
 .theme-toggle-btn {
   border: 1.5px solid #c7d2e5;
   background: #fff;
@@ -3111,4 +3165,50 @@ html.theme-dark .settings-v2-recommend-item {
   .settings-v2-overview-value {
     font-size: 42px;
   }
+}
+
+html.theme-dark .admin-mode-btn {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #422006, #78350f);
+  color: #fef3c7;
+}
+
+html.theme-dark .admin-mode-btn:hover {
+  border-color: #fbbf24;
+  background: linear-gradient(135deg, #78350f, #92400e);
+}
+
+html.theme-dark .admin-mode-btn.is-elevated {
+  border-color: #fb7185;
+  background: linear-gradient(135deg, #4c0519, #831843);
+  color: #fecdd3;
+}
+
+html.theme-dark .admin-token-generate-btn {
+  border-color: #38bdf8;
+  background: linear-gradient(135deg, #082f49, #0c4a6e);
+  color: #bae6fd;
+}
+
+html.theme-dark .admin-token-generate-btn:hover {
+  border-color: #7dd3fc;
+  background: linear-gradient(135deg, #0c4a6e, #0369a1);
+}
+
+.admin-mode-message {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+html.theme-dark .admin-mode-message {
+  border-color: #334155;
+  background: #0f172a;
+  color: #cbd5e1;
 }

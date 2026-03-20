@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
 import { generateResetToken } from "../../lib/auth";
+import { isMailerConfigured, sendPasswordResetEmail } from "../../lib/mailer";
 
 export const runtime = "nodejs";
 
@@ -46,13 +47,21 @@ export async function POST(request) {
       [user.id, resetToken.hash]
     );
 
-    const payload = { ...genericResponse };
-    if (process.env.NODE_ENV !== "production") {
-      payload.dev_reset_token = resetToken.raw;
-      payload.dev_reset_hint = `Mở /reset-password và dán mã này: ${resetToken.raw}`;
+    if (user.email && isMailerConfigured()) {
+      try {
+        await sendPasswordResetEmail({
+          toEmail: user.email,
+          username: user.username,
+          resetToken: resetToken.raw,
+        });
+      } catch (mailError) {
+        console.error("Forgot password email failed:", mailError);
+      }
+    } else {
+      console.warn("Forgot password email skipped: SMTP not configured or user has no email");
     }
 
-    return NextResponse.json(payload);
+    return NextResponse.json(genericResponse);
   } catch (error) {
     return NextResponse.json(
       {

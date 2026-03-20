@@ -1,9 +1,9 @@
 import { pool } from "../../lib/db";
-import { requireRole } from "../../lib/sessionAuth";
+import { requireAuth } from "../../lib/sessionAuth";
 
 export async function GET(request) {
   try {
-    const auth = await requireRole(request, ["admin"]);
+    const auth = await requireAuth(request);
     if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(request.url);

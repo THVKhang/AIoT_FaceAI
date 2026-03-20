@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
-import { generateSessionToken, hashPassword } from "../../lib/auth";
+import { generateSessionToken, hashPassword, validatePasswordPolicy } from "../../lib/auth";
 
 export const runtime = "nodejs";
 
@@ -11,16 +11,17 @@ export async function POST(request) {
     const email = String(body?.email || "").trim().toLowerCase();
     const password = String(body?.password || "").trim();
 
-    if (!username || !password) {
+    if (!username || !email || !password) {
       return NextResponse.json(
-        { success: false, message: "Vui lòng nhập tên đăng nhập và mật khẩu" },
+        { success: false, message: "Vui lòng nhập tên đăng nhập, email và mật khẩu" },
         { status: 400 }
       );
     }
 
-    if (password.length < 8) {
+    const passwordCheck = validatePasswordPolicy(password);
+    if (!passwordCheck.ok) {
       return NextResponse.json(
-        { success: false, message: "Mật khẩu phải có ít nhất 8 ký tự" },
+        { success: false, message: passwordCheck.message },
         { status: 400 }
       );
     }

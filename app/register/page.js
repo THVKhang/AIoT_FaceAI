@@ -70,7 +70,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="login-v2-field">
-            <label className="login-v2-label" htmlFor="register-email">Email (không bắt buộc)</label>
+            <label className="login-v2-label" htmlFor="register-email">Email</label>
             <input
               id="register-email"
               type="email"
@@ -78,6 +78,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
+              required
             />
           </div>
 
@@ -89,8 +90,10 @@ export default function RegisterPage() {
               className="login-v2-input"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Tối thiểu 8 ký tự"
-              minLength={8}
+              placeholder=">=7 ký tự, gồm a-z, A-Z, 0-9"
+              minLength={7}
+              pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{7,}"
+              title="Mật khẩu phải dài hơn 6 ký tự và gồm chữ thường, chữ hoa, số"
               required
             />
           </div>
@@ -104,7 +107,7 @@ export default function RegisterPage() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Nhập lại mật khẩu"
-              minLength={8}
+              minLength={7}
               required
             />
           </div>

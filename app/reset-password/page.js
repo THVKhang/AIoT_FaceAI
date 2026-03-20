@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -12,6 +12,14 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const value = String(params.get("token") || "").trim();
+    if (value) {
+      setToken(value);
+    }
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -80,7 +88,10 @@ export default function ResetPasswordPage() {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              minLength={8}
+              minLength={7}
+              pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{7,}"
+              title="Mật khẩu phải dài hơn 6 ký tự và gồm chữ thường, chữ hoa, số"
+              placeholder=">=7 ký tự, gồm a-z, A-Z, 0-9"
               required
             />
           </div>
@@ -93,7 +104,7 @@ export default function ResetPasswordPage() {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              minLength={8}
+              minLength={7}
               required
             />
           </div>

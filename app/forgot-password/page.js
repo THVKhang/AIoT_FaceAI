@@ -8,13 +8,11 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [devToken, setDevToken] = useState("");
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
     setMessage("");
-    setDevToken("");
     setLoading(true);
 
     try {
@@ -28,9 +26,6 @@ export default function ForgotPasswordPage() {
       if (!json.success) throw new Error(json.message || "Yêu cầu thất bại");
 
       setMessage(json.message || "Đã tạo yêu cầu đặt lại mật khẩu");
-      if (json.dev_reset_token) {
-        setDevToken(json.dev_reset_token);
-      }
     } catch (err) {
       setError(err.message || "Không thể gửi yêu cầu");
     } finally {
@@ -66,12 +61,6 @@ export default function ForgotPasswordPage() {
 
           {error ? <div className="login-v2-error">{error}</div> : null}
           {message ? <div className="login-v2-success">{message}</div> : null}
-          {devToken ? (
-            <div className="login-v2-dev-token">
-              <div className="login-v2-dev-token-label">Mã đặt lại mật khẩu (dev)</div>
-              <div className="login-v2-dev-token-value">{devToken}</div>
-            </div>
-          ) : null}
 
           <button className="login-v2-submit" type="submit" disabled={loading}>
             {loading ? "Đang tạo yêu cầu..." : "Gửi yêu cầu"}

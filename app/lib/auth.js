@@ -1,6 +1,19 @@
 import crypto from "crypto";
 
 const PASSWORD_PREFIX = "scrypt";
+const PASSWORD_POLICY_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{7,}$/;
+
+export function validatePasswordPolicy(password) {
+  const value = String(password || "");
+  if (!PASSWORD_POLICY_REGEX.test(value)) {
+    return {
+      ok: false,
+      message: "Mật khẩu phải dài hơn 6 ký tự và gồm chữ thường, chữ hoa, số",
+    };
+  }
+
+  return { ok: true };
+}
 
 export function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -28,6 +41,47 @@ export function generateSessionToken() {
 
 export function hashToken(token) {
   return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
+
+function safeEqualText(left, right) {
+  const l = Buffer.from(String(left));
+  const r = Buffer.from(String(right));
+  if (l.length !== r.length) return false;
+  return crypto.timingSafeEqual(l, r);
+}
+
+export function generateAdminElevationToken() {
+  const raw = crypto.randomBytes(24).toString("base64url");
+  return {
+    token: raw,
+    hash: hashToken(raw),
+  };
+}
+
+export function verifyAdminElevationToken(token) {
+  const incoming = String(token || "").trim();
+  if (!incoming) {
+    return { ok: false, reason: "empty" };
+  }
+
+  const configuredHash = String(process.env.ADMIN_ELEVATION_TOKEN_HASH || "").trim();
+  const configuredRaw = String(process.env.ADMIN_ELEVATION_TOKEN || "").trim();
+
+  if (!configuredHash && !configuredRaw) {
+    return { ok: false, reason: "not_configured" };
+  }
+
+  const incomingHash = hashToken(incoming);
+
+  if (configuredHash && safeEqualText(incomingHash, configuredHash)) {
+    return { ok: true };
+  }
+
+  if (configuredRaw && safeEqualText(incoming, configuredRaw)) {
+    return { ok: true };
+  }
+
+  return { ok: false, reason: "invalid" };
 }
 
 export function generateResetToken() {

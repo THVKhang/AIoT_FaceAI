@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
-import { hashPassword, hashToken } from "../../lib/auth";
+import { hashPassword, hashToken, validatePasswordPolicy } from "../../lib/auth";
 
 export const runtime = "nodejs";
 
@@ -17,9 +17,10 @@ export async function POST(request) {
       );
     }
 
-    if (newPassword.length < 8) {
+    const passwordCheck = validatePasswordPolicy(newPassword);
+    if (!passwordCheck.ok) {
       return NextResponse.json(
-        { success: false, message: "Mật khẩu mới phải có ít nhất 8 ký tự" },
+        { success: false, message: passwordCheck.message },
         { status: 400 }
       );
     }
