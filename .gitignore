@@ -14,7 +14,10 @@ dist/
 downloads/
 eggs/
 .eggs/
+# Keep Python top-level build output ignored, but allow Next.js app/lib sources.
 lib/
+!app/lib/
+!app/lib/*.js
 lib64/
 parts/
 sdist/
