@@ -44,6 +44,7 @@ export default function LoginPage() {
 
   return (
     <main className="login-v2-page">
+      <div className="login-v2-photo-bg" aria-hidden="true" />
       <div className="login-v2-bg-overlay" aria-hidden="true" />
 
       <section className="login-v2-card">

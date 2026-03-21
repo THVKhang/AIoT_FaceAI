@@ -16,52 +16,155 @@ body {
 }
 
 :root {
-  --bg: #f3f7fb;
+  --bg: #edf3fa;
   --text: #0f172a;
+  --bg-accent-a: rgba(56, 189, 248, 0.16);
+  --bg-accent-b: rgba(59, 130, 246, 0.2);
+  --bg-accent-c: rgba(16, 185, 129, 0.12);
 }
 
 html.theme-dark {
   --bg: #0b1220;
   --text: #e2e8f0;
+  --bg-accent-a: rgba(56, 189, 248, 0.12);
+  --bg-accent-b: rgba(96, 165, 250, 0.2);
+  --bg-accent-c: rgba(45, 212, 191, 0.08);
 }
 
 .app-shell {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 24%),
-    radial-gradient(circle at top right, rgba(16, 185, 129, 0.10), transparent 20%),
-    linear-gradient(180deg, #f8fbff 0%, #f3f7fb 100%);
+    linear-gradient(165deg, rgba(233, 242, 252, 0.46) 0%, rgba(225, 236, 248, 0.5) 55%, rgba(220, 232, 246, 0.46) 100%),
+    url("/images/school-bg.jpg"),
+    radial-gradient(1200px 540px at -10% -5%, var(--bg-accent-b), transparent 58%),
+    radial-gradient(900px 480px at 115% -10%, var(--bg-accent-c), transparent 52%),
+    radial-gradient(800px 420px at 48% 104%, var(--bg-accent-a), transparent 58%),
+    linear-gradient(180deg, #f8fbff 0%, var(--bg) 62%, #e8f0f8 100%);
+  background-size: cover, cover, auto, auto, auto, auto;
+  background-position: center, center, center, center, center, center;
+  background-repeat: no-repeat;
   padding: 24px;
+}
+
+.dashboard-container {
+  position: relative;
+  z-index: 1;
 }
 
 .app-shell-bg {
   position: fixed;
   inset: 0;
   pointer-events: none;
+  z-index: 0;
   background:
-    radial-gradient(circle at 20% 15%, rgba(255,255,255,0.55), transparent 18%),
-    radial-gradient(circle at 80% 0%, rgba(255,255,255,0.35), transparent 20%);
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.4), transparent 22%),
+    radial-gradient(circle at 86% 6%, rgba(255, 255, 255, 0.28), transparent 24%),
+    repeating-linear-gradient(
+      118deg,
+      rgba(15, 23, 42, 0.01) 0,
+      rgba(15, 23, 42, 0.01) 1px,
+      transparent 1px,
+      transparent 20px
+    );
+  animation: shellGlowDrift 18s ease-in-out infinite alternate;
+}
+
+@keyframes shellGlowDrift {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.92;
+  }
+  to {
+    transform: translate3d(0, -10px, 0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell-bg {
+    animation: none;
+  }
+}
+
+html.theme-dark .app-shell {
+  background:
+    radial-gradient(1000px 520px at -8% -4%, rgba(37, 99, 235, 0.22), transparent 54%),
+    radial-gradient(900px 500px at 110% 2%, rgba(20, 184, 166, 0.16), transparent 52%),
+    linear-gradient(180deg, #0f172a 0%, #0b1220 62%, #0b1425 100%);
+}
+
+html.theme-dark .app-shell-bg {
+  background:
+    radial-gradient(circle at 15% 10%, rgba(96, 165, 250, 0.12), transparent 24%),
+    radial-gradient(circle at 88% 4%, rgba(20, 184, 166, 0.1), transparent 24%),
+    repeating-linear-gradient(
+      120deg,
+      rgba(226, 232, 240, 0.02) 0,
+      rgba(226, 232, 240, 0.02) 1px,
+      transparent 1px,
+      transparent 20px
+    );
 }
 
 /*--------------------- LOGIN ---------------------*/
 .login-v2-page {
   position: relative;
+  isolation: isolate;
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 24px;
-  background: linear-gradient(140deg, #0f154d 0%, #1a227f 58%, #24379a 100%);
+  background-color: #dbe7f6;
+  background-image:
+    linear-gradient(165deg, rgba(233, 242, 252, 0.08) 0%, rgba(225, 236, 248, 0.1) 55%, rgba(220, 232, 246, 0.08) 100%),
+    url("/images/school-bg.jpg");
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   overflow: hidden;
+}
+
+.login-v2-photo-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("/images/school-bg.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transform: scale(1.02);
 }
 
 .login-v2-bg-overlay {
   position: fixed;
   inset: 0;
   pointer-events: none;
+  z-index: 1;
   background:
-    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.14), transparent 26%),
-    radial-gradient(circle at 80% 8%, rgba(255, 255, 255, 0.12), transparent 30%),
-    radial-gradient(circle at 50% 100%, rgba(135, 168, 255, 0.16), transparent 32%);
+    radial-gradient(circle at 20% 16%, rgba(255, 255, 255, 0.1), transparent 32%),
+    radial-gradient(circle at 84% 8%, rgba(255, 255, 255, 0.08), transparent 34%),
+    radial-gradient(circle at 50% 100%, rgba(120, 150, 255, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(17, 42, 88, 0.08) 0%, rgba(17, 42, 88, 0.12) 100%);
+}
+
+.login-v2-page::before {
+  content: "";
+  position: absolute;
+  inset: -8% -6%;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(520px 220px at 12% 18%, rgba(153, 184, 255, 0.06), transparent 65%),
+    radial-gradient(460px 200px at 84% 20%, rgba(130, 168, 255, 0.05), transparent 65%);
+}
+
+.login-v2-page > .login-v2-card {
+  position: relative;
+  z-index: 2;
 }
 
 .login-v2-card {
@@ -70,7 +173,7 @@ html.theme-dark {
   width: min(100%, 460px);
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   box-shadow: 0 24px 50px rgba(7, 20, 63, 0.4);
@@ -282,6 +385,7 @@ html.theme-dark {
 @media (max-width: 560px) {
   .login-v2-page {
     padding: 16px;
+    background-attachment: scroll;
   }
 
   .login-v2-card {
@@ -646,15 +750,20 @@ html.theme-dark {
 
 html.theme-dark .app-shell {
   background:
+    linear-gradient(160deg, rgba(12, 24, 52, 0.34) 0%, rgba(13, 24, 56, 0.42) 60%, rgba(9, 18, 40, 0.46) 100%),
+    url("/images/school-bg.jpg"),
     radial-gradient(circle at top left, rgba(59, 130, 246, 0.16), transparent 24%),
     radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%),
     linear-gradient(180deg, #0b1220 0%, #111827 100%);
+  background-size: cover, cover, auto, auto, auto;
+  background-position: center, center, center, center, center;
+  background-repeat: no-repeat;
 }
 
 html.theme-dark .app-shell-bg {
   background:
-    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.06), transparent 18%),
-    radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.05), transparent 20%);
+    radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.04), transparent 20%),
+    radial-gradient(circle at 80% 0%, rgba(255, 255, 255, 0.03), transparent 20%);
 }
 
 html.theme-dark .topnav,
@@ -776,6 +885,37 @@ html.theme-dark .realtime-status-pill.tone-neutral {
   border-radius: 999px;
   background: #22c55e;
   box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+}
+
+.user-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #374151;
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid #e5e7eb;
+}
+
+.user-icon {
+  display: inline-block;
+  font-size: 18px;
+}
+
+.user-name {
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html.theme-dark .user-info {
+  background: #1f2937;
+  color: #f3f4f6;
+  border-color: #374151;
 }
 
 .page-hero {

@@ -179,10 +179,7 @@ export default function TopNav() {
     <header className="topnav">
       <div className="topnav-brand">
         <div className="brand-mark">AI</div>
-        <div>
-          <div className="brand-title">AIoT FaceAI Smart Door</div>
-          <div className="brand-subtitle">Next.js • PostgreSQL • Adafruit IO</div>
-        </div>
+        <div className="brand-title">AIoT FaceAI</div>
       </div>
 
       <nav className="topnav-menu">
@@ -242,6 +239,14 @@ export default function TopNav() {
           <span className="status-dot" />
           Online
         </div>
+
+        {session?.username && (
+          <div className="user-info">
+            <span className="user-icon">👤</span>
+            <span className="user-name">{session.username}</span>
+          </div>
+        )}
+
         <LogoutButton />
       </div>
 

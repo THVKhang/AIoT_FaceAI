@@ -1,5 +1,7 @@
 # AIoT FaceAI
 
+English version: see README.en.md
+
 He thong AIoT Smart Home ket hop dashboard web, du lieu IoT real-time, xac thuc nguoi dung va nhat ky AI nhan dien khuon mat.
 
 README nay duoc viet cho nguoi moi hoan toan, chi can lam theo tung buoc la co the chay duoc he thong local.

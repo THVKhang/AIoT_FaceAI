@@ -96,7 +96,13 @@ export default function useDashboardData() {
     } catch (err) {
       console.error(err);
       if (err instanceof AuthExpiredError) {
-        window.location.href = "/login";
+        // Clear stale auth cookies so middleware allows /login instead of redirect loop.
+        try {
+          await fetch("/api/logout", { method: "POST" });
+        } catch (_logoutError) {
+          // Ignore logout network errors and still force user back to login.
+        }
+        window.location.replace("/login");
         return;
       }
       setError(err.message || "Lỗi tải dashboard");
