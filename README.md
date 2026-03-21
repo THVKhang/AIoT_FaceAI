@@ -1,127 +1,127 @@
 # AIoT FaceAI
 
-English version: see README.en.md
+Vietnamese version: see README.md
 
-He thong AIoT Smart Home ket hop dashboard web, du lieu IoT real-time, xac thuc nguoi dung va nhat ky AI nhan dien khuon mat.
+AIoT smart home system combining a web dashboard, real-time IoT data, user authentication, and AI face-recognition event logs.
 
-README nay duoc viet cho nguoi moi hoan toan, chi can lam theo tung buoc la co the chay duoc he thong local.
+This README is written for complete beginners. Follow the steps in order to run the system locally.
 
-## 1. Tong quan he thong
+## 1. System overview
 
-AIoT FaceAI la mot he thong giam sat va dieu khien nha thong minh voi 4 khoi chinh:
+AIoT FaceAI includes 4 main blocks:
 
-1. Frontend (giao dien web): hien thi dashboard, logs, settings, login/register.
-2. Backend API (Next.js API Routes): xu ly nghiep vu, auth, docs, truy van database.
-3. Database PostgreSQL: luu state hien tai, logs, lich su lenh, du lieu auth.
-4. IoT Gateway + AI feed (Python): nhan du lieu tu Adafruit IO, ghi vao DB va luu su kien AI.
+1. Frontend (web UI): dashboard, logs, settings, login/register.
+2. Backend API (Next.js API Routes): business logic, auth, docs, database queries.
+3. PostgreSQL database: current state, logs, command history, auth data.
+4. IoT gateway + AI feed (Python): reads Adafruit IO feeds, writes to DB, stores AI events.
 
-## 2. Kien truc don gian
+## 2. Simple architecture
 
 ```text
 IoT Device / AI Module
-		  |
-		  v
+          |
+          v
   Adafruit IO feeds
-		  |
-		  v
+          |
+          v
 Python gateway (adafruit_to_db.py)
-		  |
-		  v
-	PostgreSQL (Supabase/local)
-		  |
-		  v
+          |
+          v
+    PostgreSQL (Supabase/local)
+          |
+          v
 Next.js API (app/api/*)
-		  |
-		  v
+          |
+          v
 Frontend Dashboard (app/*)
 ```
 
-## 3. Frontend dang dung gi?
+## 3. Frontend stack
 
-Frontend duoc xay bang:
+Frontend is built with:
 
 1. Next.js 15 + React 18.
-2. App Router (`app/`), page va component theo module.
-3. Cac man hinh chinh:
-	- `/dashboard`: tong quan cam bien va trang thai.
-	- `/devices`: trang thiet bi.
-	- `/logs`: nhat ky he thong.
-	- `/settings`: cau hinh.
-	- `/login`, `/register`, `/forgot-password`, `/reset-password`.
+2. App Router (`app/`) with modular pages and components.
+3. Main screens:
+   - `/dashboard`: sensor and status overview.
+   - `/devices`: device page.
+   - `/logs`: system logs.
+   - `/settings`: configuration.
+   - `/login`, `/register`, `/forgot-password`, `/reset-password`.
 
-Muc tieu frontend: hien thi du lieu de hieu, thao tac nhanh, auth ro rang.
+Frontend goal: clear data display, fast interactions, and straightforward authentication flow.
 
-## 4. Backend dang dung gi?
+## 4. Backend stack
 
-Backend su dung Next.js API Routes trong `app/api/`:
+Backend uses Next.js API Routes in `app/api/`:
 
 1. Auth APIs: register, login, logout, forgot/reset password, session.
 2. Data APIs: gauges, history, logs, commands, alerts, settings, state.
-3. Admin/elevation APIs: token va phan quyen admin tam thoi.
+3. Admin/elevation APIs: token and temporary admin privilege flow.
 
-Backend truy cap DB qua thu vien `pg` va cac ham trong `app/lib/`.
+Backend accesses PostgreSQL via `pg` and helpers in `app/lib/`.
 
-## 5. Database dang dung gi?
+## 5. Database
 
-He thong dung PostgreSQL (co the local hoac Supabase cloud).
+The system uses PostgreSQL (local or Supabase cloud).
 
-Nhom bang quan trong:
+Important table groups:
 
-1. `current_state`: gia tri moi nhat cua cac feed.
-2. `system_logs`, `commands`, `access_logs`: lich su su kien he thong.
-3. `app_users`, `auth_sessions`, `password_reset_tokens`: auth va session.
-4. `gauge_config`: cau hinh min/max/warn cho UI.
+1. `current_state`: latest values for each feed.
+2. `system_logs`, `commands`, `access_logs`: system event history.
+3. `app_users`, `auth_sessions`, `password_reset_tokens`: auth and sessions.
+4. `gauge_config`: min/max/warn thresholds used by UI.
 
-Migration SQL nam trong `database/`, chay bang script:
+SQL migrations are in `database/`, run with:
 
 ```bash
 npm run db:init
 ```
 
-## 6. AI duoc dung nhu the nao?
+## 6. How AI is used
 
-Trong code hien tai, AI duoc tich hop theo huong event/data pipeline:
+In the current codebase, AI is integrated as an event/data pipeline:
 
-1. Module AI ben ngoai (camera/edge/process) day ket qua len feed (vi du `ai-face-result`).
-2. Gateway Python doc feed va ghi vao database.
-3. Backend/Frontend hien thi ket qua AI trong logs va dashboard.
-4. Khi can, he thong co the tao event mo cua/tu choi truy cap dua tren ket qua AI.
+1. External AI module (camera/edge/process) pushes results to feeds (for example `ai-face-result`).
+2. Python gateway reads feeds and writes results to database.
+3. Backend/Frontend renders AI results in logs and dashboard.
+4. The system can trigger events such as door-open/deny based on AI results.
 
-Noi ngan gon: web app khong train model truc tiep, ma tiep nhan ket qua AI va bien no thanh nghiep vu van hanh.
+In short: the web app does not train models directly. It consumes AI results and turns them into operational workflows.
 
-## 7. Cau truc thu muc chinh
+## 7. Main folder structure
 
 ```text
 AIoT_FaceAI/
   app/                  # Frontend pages + API routes (Next.js)
   database/             # SQL schema + seed + migration files
-  scripts/              # Script chay SQL / admin token
-  Report/               # Tai lieu latex report
-  adafruit.py           # Script mo phong feed
-  adafruit_to_db.py     # Gateway doc feed va ghi DB
+  scripts/              # SQL runner / admin token scripts
+  Report/               # LaTeX report documents
+  adafruit.py           # Feed simulator script
+  adafruit_to_db.py     # Feed-to-DB gateway script
   requirements.txt      # Python dependencies
   package.json          # Node dependencies + scripts
 ```
 
-## 8. Chay local tu dau (cho nguoi moi)
+## 8. Run locally from scratch
 
-### B1: Cai cong cu
+### Step 1: Install tools
 
-1. Node.js 18+ (khuyen nghi 20+)
+1. Node.js 18+ (20+ recommended)
 2. npm 9+
 3. Python 3.10+
-4. PostgreSQL (local) hoac Supabase
+4. PostgreSQL (local) or Supabase
 
-### B2: Clone source
+### Step 2: Clone source
 
 ```bash
 git clone https://github.com/THVKhang/AIoT_FaceAI.git
 cd AIoT_FaceAI
 ```
 
-### B3: Tao file env
+### Step 3: Create environment file
 
-Tao `.env.local` tai root:
+Create `.env.local` at project root:
 
 ```env
 DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<db>?sslmode=require
@@ -139,7 +139,7 @@ SMTP_PASS=your_app_password
 MAIL_FROM=your_email@gmail.com
 ```
 
-### B4: Cai dependencies
+### Step 4: Install dependencies
 
 Node:
 
@@ -163,81 +163,81 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### B5: Khoi tao database
+### Step 5: Initialize database
 
 ```bash
 npm run db:init
 ```
 
-### B6: Chay web app
+### Step 6: Run web app
 
 ```bash
 npm run dev
 ```
 
-Mo `http://localhost:3000`.
+Open `http://localhost:3000`.
 
-### B7: (Tuy chon) Chay gateway IoT
+### Step 7: (Optional) Run IoT gateway
 
-Mo terminal moi (venv da active):
+Open a new terminal (with active venv):
 
 ```bash
 python adafruit_to_db.py
 ```
 
-Tuy chon mo phong feed:
+Optional feed simulation:
 
 ```bash
 python adafruit.py
 ```
 
-## 9. Scripts quan trong
+## 9. Important scripts
 
-Trong `package.json`:
+In `package.json`:
 
-1. `npm run dev`: chay local dev server.
-2. `npm run build`: build production.
+1. `npm run dev`: start local dev server.
+2. `npm run build`: production build.
 3. `npm run start`: run production build.
-4. `npm run db:init`: chay toan bo SQL migration.
-5. `npm run admin:token`: tao admin token.
+4. `npm run db:init`: run full SQL migration pipeline.
+5. `npm run admin:token`: generate admin token.
 
-## 10. Deploy production
+## 10. Production deployment
 
-Khuyen nghi Vercel + Supabase:
+Recommended: Vercel + Supabase
 
-1. Push code len GitHub.
-2. Connect repo voi Vercel.
-3. Set env vars tren Vercel (DB + SMTP + APP_BASE_URL).
-4. Chay migration tren DB production.
-5. Kiem tra register/login/forgot-password va dashboard data.
+1. Push source code to GitHub.
+2. Connect repository to Vercel.
+3. Set env vars on Vercel (DB + SMTP + APP_BASE_URL).
+4. Run migrations on production database.
+5. Validate register/login/forgot-password and dashboard data.
 
-## 11. Cac loi thuong gap
+## 11. Common issues
 
-1. Register/Login fail sau deploy:
-	- Thuong do thieu env vars hoac DB schema chua migrate.
-2. Khong gui duoc email reset:
-	- Kiem tra SMTP vars va app password.
-3. Dashboard khong co du lieu:
-	- Kiem tra gateway Python co dang chay khong.
-4. Build local fail:
-	- Chay lai `npm install` va `npm run db:init`.
+1. Register/Login fails after deploy:
+   - Usually missing env vars or database schema not migrated.
+2. Password reset email is not sent:
+   - Check SMTP vars and app password.
+3. Dashboard shows no data:
+   - Check whether Python gateway is running.
+4. Local build fails:
+   - Re-run `npm install` and `npm run db:init`.
 
-## 12. Tinh nang bao mat hien co
+## 12. Current security features
 
-1. Password hash.
-2. Session token + expire.
-3. Password reset token co han.
-4. Role user/admin va co che admin elevation.
+1. Password hashing.
+2. Session token with expiration.
+3. Expiring password reset tokens.
+4. User/admin role model with admin elevation mechanism.
 
-## 13. Dinh huong mo rong AI/ML
+## 13. AI/ML expansion directions
 
-Neu sau nay them train/inference module:
+If you add training/inference modules later:
 
-1. Tach service train/offline khoi web app.
-2. Giu API web de consume ket qua AI.
-3. Luu model metadata + access logs trong DB.
-4. Bổ sung monitoring cho inference latency va accuracy drift.
+1. Keep train/offline service separate from web app.
+2. Keep web APIs focused on consuming AI results.
+3. Store model metadata and access logs in database.
+4. Add monitoring for inference latency and accuracy drift.
 
 ---
 
-Neu ban moi vao du an, hay bat dau tu muc 8 (chay local tu dau), sau do doc muc 1-6 de hieu kien truc tong the.
+If you are new to this project, start from section 8 (local setup), then read sections 1-6 to understand the overall architecture.
