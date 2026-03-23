@@ -6,7 +6,10 @@ import { useEffect, useState } from "react";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [token, setToken] = useState("");
+  const [resetMethod, setResetMethod] = useState("token");
+  const [resetToken, setResetToken] = useState("");
+  const [accountIdentifier, setAccountIdentifier] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,9 +20,11 @@ export default function ResetPasswordPage() {
     const params = new URLSearchParams(window.location.search);
     const value = String(params.get("token") || "").trim();
     if (value) {
-      setToken(value);
+      setResetToken(value);
     }
   }, []);
+
+  const isRecoveryReset = resetMethod === "recovery";
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -37,7 +42,13 @@ export default function ResetPasswordPage() {
       const response = await fetch("/api/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, newPassword }),
+        body: JSON.stringify({
+          resetMethod,
+          resetToken,
+          accountIdentifier,
+          recoveryCode,
+          newPassword,
+        }),
       });
 
       const json = await response.json();
@@ -69,16 +80,74 @@ export default function ResetPasswordPage() {
 
         <form className="login-v2-form" onSubmit={handleSubmit}>
           <div className="login-v2-field">
+            <label className="login-v2-label">Phương thức reset</label>
+            <div className="login-v2-methods" role="radiogroup" aria-label="Phương thức đặt lại mật khẩu">
+              <label className="login-v2-method-option">
+                <input
+                  type="radio"
+                  name="resetMethod"
+                  value="token"
+                  checked={resetMethod === "token"}
+                  onChange={() => setResetMethod("token")}
+                />
+                Mã email (Resend)
+              </label>
+              <label className="login-v2-method-option">
+                <input
+                  type="radio"
+                  name="resetMethod"
+                  value="recovery"
+                  checked={resetMethod === "recovery"}
+                  onChange={() => setResetMethod("recovery")}
+                />
+                Mã khôi phục
+              </label>
+            </div>
+          </div>
+
+          {!isRecoveryReset ? (
+          <div className="login-v2-field">
             <label className="login-v2-label" htmlFor="reset-token">Mã đặt lại mật khẩu</label>
             <input
               id="reset-token"
               className="login-v2-input"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
+              value={resetToken}
+              onChange={(e) => setResetToken(e.target.value)}
               placeholder="Dán mã đặt lại mật khẩu"
-              required
+              required={!isRecoveryReset}
             />
           </div>
+          ) : (
+            <>
+              <div className="login-v2-field">
+                <label className="login-v2-label" htmlFor="reset-identity">Tên đăng nhập / Email</label>
+                <input
+                  id="reset-identity"
+                  className="login-v2-input"
+                  value={accountIdentifier}
+                  onChange={(e) => setAccountIdentifier(e.target.value)}
+                  placeholder="Nhập tên đăng nhập hoặc email"
+                  required={isRecoveryReset}
+                />
+              </div>
+
+              <div className="login-v2-field">
+                <label className="login-v2-label" htmlFor="recovery-code">Mã khôi phục</label>
+                <input
+                  id="recovery-code"
+                  className="login-v2-input"
+                  value={recoveryCode}
+                  onChange={(e) => setRecoveryCode(e.target.value.toUpperCase())}
+                  placeholder="Nhập mã khôi phục"
+                  maxLength={10}
+                  autoCapitalize="characters"
+                  autoComplete="one-time-code"
+                  required={isRecoveryReset}
+                />
+                <small className="login-v2-hint">Mã khôi phục được cấp khi tạo tài khoản.</small>
+              </div>
+            </>
+          )}
 
           <div className="login-v2-field">
             <label className="login-v2-label" htmlFor="reset-new-password">Mật khẩu mới</label>

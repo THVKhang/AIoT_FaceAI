@@ -43,8 +43,39 @@ export function hashToken(token) {
   return crypto.createHash("sha256").update(String(token)).digest("hex");
 }
 
+export function verifyHashedToken(rawToken, expectedHash) {
+  if (!expectedHash || typeof expectedHash !== "string") {
+    return false;
+  }
+
+  const incomingHash = hashToken(rawToken);
+  const incomingBuffer = Buffer.from(incomingHash, "hex");
+  const expectedBuffer = Buffer.from(expectedHash, "hex");
+
+  if (incomingBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(incomingBuffer, expectedBuffer);
+}
+
 export function generateResetToken() {
   const raw = crypto.randomBytes(32).toString("hex");
   const hash = hashToken(raw);
   return { raw, hash };
+}
+
+export function generateRecoveryCode(length = 10) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let raw = "";
+
+  for (let i = 0; i < length; i += 1) {
+    const index = crypto.randomInt(0, chars.length);
+    raw += chars[index];
+  }
+
+  return {
+    raw,
+    hash: hashToken(raw),
+  };
 }

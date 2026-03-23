@@ -80,6 +80,8 @@ Lưu tài khoản người dùng cho đăng ký/đăng nhập:
 - email
 - password_hash (mật khẩu đã mã hóa)
 - role (mặc định user)
+- recovery_code_hash (SHA-256 của mã khôi phục)
+- recovery_code_created_at (thời điểm cấp mã khôi phục)
 - created_at
 - updated_at
 

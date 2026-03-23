@@ -234,6 +234,31 @@ html.theme-dark .app-shell-bg {
   margin-left: 2px;
 }
 
+.login-v2-methods {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.login-v2-method-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.login-v2-method-option input {
+  accent-color: #1a227f;
+}
+
+.login-v2-hint {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .login-v2-input {
   width: 100%;
   height: 48px;

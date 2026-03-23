@@ -12,10 +12,14 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [issuedRecoveryCode, setIssuedRecoveryCode] = useState("");
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
+    setSuccessMessage("");
+    setIssuedRecoveryCode("");
 
     if (password !== confirmPassword) {
       setError("Mật khẩu nhập lại không khớp");
@@ -34,8 +38,14 @@ export default function RegisterPage() {
       const json = await response.json();
       if (!json.success) throw new Error(json.message || "Đăng ký thất bại");
 
-      router.push("/");
-      router.refresh();
+      const recoveryCode = String(json?.data?.recoveryCode || "").trim();
+      setIssuedRecoveryCode(recoveryCode);
+      setSuccessMessage(json.message || "Đăng ký thành công");
+
+      setTimeout(() => {
+        router.push("/");
+        router.refresh();
+      }, 3000);
     } catch (err) {
       setError(err.message || "Không thể đăng ký");
     } finally {
@@ -113,6 +123,13 @@ export default function RegisterPage() {
           </div>
 
           {error ? <div className="login-v2-error">{error}</div> : null}
+          {successMessage ? <div className="login-v2-success">{successMessage}</div> : null}
+          {issuedRecoveryCode ? (
+            <div className="login-v2-dev-token" role="status" aria-live="polite">
+              <div className="login-v2-dev-token-label">Mã khôi phục (lưu lại ngay)</div>
+              <div className="login-v2-dev-token-value">{issuedRecoveryCode}</div>
+            </div>
+          ) : null}
 
           <button className="login-v2-submit" type="submit" disabled={loading}>
             {loading ? "Đang tạo tài khoản..." : "Đăng ký"}

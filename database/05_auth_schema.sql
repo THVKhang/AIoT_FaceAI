@@ -14,6 +14,26 @@ CREATE TABLE IF NOT EXISTS app_users (
 ALTER TABLE app_users
 ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
 
+ALTER TABLE app_users
+ADD COLUMN IF NOT EXISTS recovery_code_hash VARCHAR(128);
+
+ALTER TABLE app_users
+ADD COLUMN IF NOT EXISTS recovery_code_created_at TIMESTAMP;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'app_users_recovery_code_hash_len_check'
+    ) THEN
+        ALTER TABLE app_users
+        ADD CONSTRAINT app_users_recovery_code_hash_len_check
+        CHECK (recovery_code_hash IS NULL OR char_length(recovery_code_hash) = 64);
+    END IF;
+END
+$$;
+
 UPDATE app_users
 SET role = 'user'
 WHERE role IS NULL OR role = '' OR role <> 'user';
@@ -55,6 +75,14 @@ ON app_users(username);
 
 CREATE INDEX IF NOT EXISTS idx_app_users_email
 ON app_users(email);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_app_users_recovery_code_hash_unique
+ON app_users(recovery_code_hash)
+WHERE recovery_code_hash IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_app_users_recovery_code_created_at
+ON app_users(recovery_code_created_at DESC)
+WHERE recovery_code_created_at IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_token_active
 ON auth_sessions(session_token, revoked_at, expires_at);

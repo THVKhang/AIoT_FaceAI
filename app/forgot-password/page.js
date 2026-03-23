@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 export default function ForgotPasswordPage() {
-  const [identity, setIdentity] = useState("");
+  const [accountIdentifier, setAccountIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -19,7 +19,7 @@ export default function ForgotPasswordPage() {
       const response = await fetch("/api/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identity }),
+        body: JSON.stringify({ accountIdentifier }),
       });
 
       const json = await response.json();
@@ -43,7 +43,9 @@ export default function ForgotPasswordPage() {
             <span className="login-v2-logo-text">FP</span>
           </div>
           <h1 className="login-v2-title">Quên mật khẩu</h1>
-          <p className="login-v2-subtitle">Nhập tên đăng nhập hoặc email để đặt lại mật khẩu</p>
+          <p className="login-v2-subtitle">
+            Cách 1: nhận mã reset qua email (Resend). Cách 2: dùng mã khôi phục đã được tạo khi đăng ký.
+          </p>
         </div>
 
         <form className="login-v2-form" onSubmit={handleSubmit}>
@@ -52,8 +54,8 @@ export default function ForgotPasswordPage() {
             <input
               id="forgot-identity"
               className="login-v2-input"
-              value={identity}
-              onChange={(e) => setIdentity(e.target.value)}
+              value={accountIdentifier}
+              onChange={(e) => setAccountIdentifier(e.target.value)}
               placeholder="Nhập tên đăng nhập hoặc email"
               required
             />

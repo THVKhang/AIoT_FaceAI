@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
-import { generateSessionToken, hashPassword, validatePasswordPolicy } from "../../lib/auth";
+import {
+  generateRecoveryCode,
+  generateSessionToken,
+  hashPassword,
+  validatePasswordPolicy,
+} from "../../lib/auth";
 
 export const runtime = "nodejs";
 
@@ -45,13 +50,15 @@ export async function POST(request) {
 
     const passwordHash = hashPassword(password);
 
+    const generatedRecoveryCode = generateRecoveryCode();
+
     const created = await pool.query(
       `
-        INSERT INTO app_users (username, email, password_hash, role)
-        VALUES ($1, NULLIF($2, ''), $3, 'user')
+        INSERT INTO app_users (username, email, password_hash, role, recovery_code_hash, recovery_code_created_at)
+        VALUES ($1, NULLIF($2, ''), $3, 'user', $4, CURRENT_TIMESTAMP)
         RETURNING id, username, email, role
       `,
-      [username, email, passwordHash]
+      [username, email, passwordHash, generatedRecoveryCode.hash]
     );
 
     const user = created.rows[0];
@@ -67,8 +74,13 @@ export async function POST(request) {
 
     const response = NextResponse.json({
       success: true,
-      message: "Đăng ký thành công",
-      data: { username: user.username, email: user.email, role: user.role },
+      message: "Đăng ký thành công. Hãy lưu mã khôi phục để reset mật khẩu khi cần.",
+      data: {
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        recoveryCode: generatedRecoveryCode.raw,
+      },
     });
 
     response.cookies.set("session", sessionToken, {

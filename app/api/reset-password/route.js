@@ -1,93 +1,30 @@
 import { NextResponse } from "next/server";
-import { pool } from "../../lib/db";
-import { hashPassword, hashToken, validatePasswordPolicy } from "../../lib/auth";
+import {
+  buildResetPasswordError,
+  resetPassword,
+} from "../../lib/passwordReset/resetPasswordService";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const token = String(body?.token || "").trim();
-    const newPassword = String(body?.newPassword || "").trim();
-
-    if (!token || !newPassword) {
-      return NextResponse.json(
-        { success: false, message: "Vui lòng nhập mã và mật khẩu mới" },
-        { status: 400 }
-      );
-    }
-
-    const passwordCheck = validatePasswordPolicy(newPassword);
-    if (!passwordCheck.ok) {
-      return NextResponse.json(
-        { success: false, message: passwordCheck.message },
-        { status: 400 }
-      );
-    }
-
-    const tokenHash = hashToken(token);
-
-    const tokenResult = await pool.query(
-      `
-        SELECT id, user_id
-        FROM password_reset_tokens
-        WHERE token_hash = $1
-          AND used_at IS NULL
-          AND expires_at > CURRENT_TIMESTAMP
-        LIMIT 1
-      `,
-      [tokenHash]
-    );
-
-    if (tokenResult.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, message: "Mã không hợp lệ hoặc đã hết hạn" },
-        { status: 400 }
-      );
-    }
-
-    const tokenRow = tokenResult.rows[0];
-    const passwordHash = hashPassword(newPassword);
-
-    await pool.query(
-      `
-        UPDATE app_users
-        SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $2
-      `,
-      [passwordHash, tokenRow.user_id]
-    );
-
-    await pool.query(
-      `
-        UPDATE password_reset_tokens
-        SET used_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-      `,
-      [tokenRow.id]
-    );
-
-    await pool.query(
-      `
-        UPDATE auth_sessions
-        SET revoked_at = CURRENT_TIMESTAMP
-        WHERE user_id = $1 AND revoked_at IS NULL
-      `,
-      [tokenRow.user_id]
-    );
+    await resetPassword(body);
 
     return NextResponse.json({
       success: true,
       message: "Đặt lại mật khẩu thành công, vui lòng đăng nhập lại",
     });
   } catch (error) {
+    const failure = buildResetPasswordError(error);
+
     return NextResponse.json(
       {
         success: false,
-        message: "Đặt lại mật khẩu thất bại",
-        error: error.message,
+        message: failure.message,
+        error: failure.message,
       },
-      { status: 500 }
+      { status: failure.status }
     );
   }
 }
