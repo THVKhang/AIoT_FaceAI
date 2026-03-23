@@ -79,14 +79,6 @@ export async function POST(request) {
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    response.cookies.set("user_role", String(user.role || "user"), {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-
     return response;
   } catch (error) {
     return NextResponse.json(

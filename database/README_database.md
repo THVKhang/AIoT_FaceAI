@@ -79,7 +79,7 @@ Lưu tài khoản người dùng cho đăng ký/đăng nhập:
 - username
 - email
 - password_hash (mật khẩu đã mã hóa)
-- role (admin hoặc user)
+- role (mặc định user)
 - created_at
 - updated_at
 

@@ -16,7 +16,7 @@ ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'user';
 
 UPDATE app_users
 SET role = 'user'
-WHERE role IS NULL OR role = '';
+WHERE role IS NULL OR role = '' OR role <> 'user';
 
 DO $$
 BEGIN
@@ -27,7 +27,7 @@ BEGIN
     ) THEN
         ALTER TABLE app_users
         ADD CONSTRAINT app_users_role_check
-        CHECK (role IN ('admin', 'user'));
+        CHECK (role = 'user');
     END IF;
 END
 $$;

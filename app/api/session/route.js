@@ -14,9 +14,6 @@ export async function GET(request) {
       username: auth.user.username,
       email: auth.user.email,
       role: auth.user.role,
-      baseRole: auth.user.baseRole,
-      isElevated: Boolean(auth.user.isElevated),
-      elevatedUntil: auth.user.elevatedUntil,
     },
   });
 }

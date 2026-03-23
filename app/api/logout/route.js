@@ -29,13 +29,5 @@ export async function POST(request) {
     maxAge: 0,
   });
 
-  response.cookies.set("user_role", "", {
-    httpOnly: true,
-    secure: false,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
-
   return response;
 }

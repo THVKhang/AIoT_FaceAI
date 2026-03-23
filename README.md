@@ -57,7 +57,6 @@ Backend uses Next.js API Routes in `app/api/`:
 
 1. Auth APIs: register, login, logout, forgot/reset password, session.
 2. Data APIs: gauges, history, logs, commands, alerts, settings, state.
-3. Admin/elevation APIs: token and temporary admin privilege flow.
 
 Backend accesses PostgreSQL via `pg` and helpers in `app/lib/`.
 
@@ -95,7 +94,7 @@ In short: the web app does not train models directly. It consumes AI results and
 AIoT_FaceAI/
   app/                  # Frontend pages + API routes (Next.js)
   database/             # SQL schema + seed + migration files
-  scripts/              # SQL runner / admin token scripts
+   scripts/              # SQL runner scripts
   Report/               # LaTeX report documents
   adafruit.py           # Feed simulator script
   adafruit_to_db.py     # Feed-to-DB gateway script
@@ -199,7 +198,6 @@ In `package.json`:
 2. `npm run build`: production build.
 3. `npm run start`: run production build.
 4. `npm run db:init`: run full SQL migration pipeline.
-5. `npm run admin:token`: generate admin token.
 
 ## 10. Production deployment
 
@@ -227,7 +225,6 @@ Recommended: Vercel + Supabase
 1. Password hashing.
 2. Session token with expiration.
 3. Expiring password reset tokens.
-4. User/admin role model with admin elevation mechanism.
 
 ## 13. AI/ML expansion directions
 

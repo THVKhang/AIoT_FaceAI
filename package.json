@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "db:init": "node scripts/run-sql-files.js",
-    "db:sql": "node scripts/run-sql-files.js",
-    "admin:token": "node scripts/generate-admin-token.js"
+    "db:sql": "node scripts/run-sql-files.js"
   },
   "dependencies": {
     "next": "^15.0.0",

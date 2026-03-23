@@ -43,47 +43,6 @@ export function hashToken(token) {
   return crypto.createHash("sha256").update(String(token)).digest("hex");
 }
 
-function safeEqualText(left, right) {
-  const l = Buffer.from(String(left));
-  const r = Buffer.from(String(right));
-  if (l.length !== r.length) return false;
-  return crypto.timingSafeEqual(l, r);
-}
-
-export function generateAdminElevationToken() {
-  const raw = crypto.randomBytes(24).toString("base64url");
-  return {
-    token: raw,
-    hash: hashToken(raw),
-  };
-}
-
-export function verifyAdminElevationToken(token) {
-  const incoming = String(token || "").trim();
-  if (!incoming) {
-    return { ok: false, reason: "empty" };
-  }
-
-  const configuredHash = String(process.env.ADMIN_ELEVATION_TOKEN_HASH || "").trim();
-  const configuredRaw = String(process.env.ADMIN_ELEVATION_TOKEN || "").trim();
-
-  if (!configuredHash && !configuredRaw) {
-    return { ok: false, reason: "not_configured" };
-  }
-
-  const incomingHash = hashToken(incoming);
-
-  if (configuredHash && safeEqualText(incomingHash, configuredHash)) {
-    return { ok: true };
-  }
-
-  if (configuredRaw && safeEqualText(incoming, configuredRaw)) {
-    return { ok: true };
-  }
-
-  return { ok: false, reason: "invalid" };
-}
-
 export function generateResetToken() {
   const raw = crypto.randomBytes(32).toString("hex");
   const hash = hashToken(raw);
