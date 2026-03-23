@@ -166,20 +166,29 @@ export async function POST(request) {
   } catch (error) {
     console.error("POST /api/commands error:", error);
 
+    const reason = String(error?.message || "Gửi lệnh thất bại");
+
     try {
       const body = await request.clone().json();
       if (body?.feed_key && body?.value !== undefined) {
-        await insertFailedCommand(body.feed_key, body.value, error.message);
+        await insertFailedCommand(body.feed_key, body.value, reason);
       }
     } catch {}
+
+    const isValidationError =
+      reason.includes("feed_key không hợp lệ") ||
+      reason.includes("Fan phải nằm trong khoảng") ||
+      reason.includes("Toggle chỉ nhận");
+
+    const status = isValidationError ? 400 : 500;
 
     return Response.json(
       {
         success: false,
-        message: "Gửi lệnh thất bại",
-        error: error.message,
+        message: reason,
+        error: reason,
       },
-      { status: 500 }
+      { status }
     );
   }
 }

@@ -64,8 +64,12 @@ export async function sendDashboardCommand(feedKey, value) {
 
   const json = await res.json();
 
+  if (res.status === 401) {
+    throw new AuthExpiredError(json?.message || "Vui lòng đăng nhập lại");
+  }
+
   if (!json.success) {
-    throw new Error(json.message || json.error || "Gửi lệnh thất bại");
+    throw new Error(json.error || json.message || "Gửi lệnh thất bại");
   }
 
   return json;

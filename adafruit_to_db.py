@@ -45,6 +45,10 @@ SUBSCRIBE_FEEDS = list(dict.fromkeys(CANONICAL_FEEDS.keys()))
 
 db_lock = threading.Lock()
 last_state_cache = {}
+mqtt_connected = threading.Event()
+
+RECONNECT_DELAY_SECONDS = 5
+WATCHDOG_INTERVAL_SECONDS = 2
 
 
 def ensure_metric_history_table():
@@ -268,6 +272,7 @@ def handle_face_result(feed_key: str, payload: str):
 
 def connected(client):
     print("✅ Kết nối Adafruit IO thành công!")
+    mqtt_connected.set()
     for feed in SUBSCRIBE_FEEDS:
         client.subscribe(feed)
         print(f"   Subscribed: {feed}")
@@ -285,6 +290,7 @@ def subscribe(client, userdata, mid, granted_qos):
 
 
 def disconnected(client):
+    mqtt_connected.clear()
     print("❌ Mất kết nối Adafruit IO")
     try:
         insert_system_log(
@@ -296,7 +302,27 @@ def disconnected(client):
     except Exception as e:
         print("Không ghi được log disconnect:", e)
 
-    sys.exit(1)
+
+def build_mqtt_client():
+    client = MQTTClient(AIO_USERNAME, AIO_KEY)
+    client.on_connect = connected
+    client.on_disconnect = disconnected
+    client.on_message = message
+    client.on_subscribe = subscribe
+    return client
+
+
+def connect_with_retry(client):
+    while True:
+        try:
+            print("🚀 Đang kết nối Adafruit IO...")
+            client.connect()
+            client.loop_background()
+            return
+        except Exception as e:
+            mqtt_connected.clear()
+            print(f"❌ Kết nối Adafruit IO lỗi: {e}. Thử lại sau {RECONNECT_DELAY_SECONDS}s...")
+            time.sleep(RECONNECT_DELAY_SECONDS)
 
 
 def message(client, feed_id, payload):
@@ -355,19 +381,30 @@ def main():
         print("❌ Không kết nối được PostgreSQL:", e)
         return
 
-    client = MQTTClient(AIO_USERNAME, AIO_KEY)
-    client.on_connect = connected
-    client.on_disconnect = disconnected
-    client.on_message = message
-    client.on_subscribe = subscribe
-
-    print("🚀 Đang kết nối Adafruit IO...")
-    client.connect()
-    client.loop_background()
+    client = build_mqtt_client()
+    connect_with_retry(client)
 
     try:
         while True:
-            time.sleep(1)
+            # Watchdog: nếu thread MQTT chết hoặc disconnect, tự tạo client mới và reconnect.
+            mqtt_thread = getattr(client, "_mqtt_thread", None)
+            thread_dead = mqtt_thread is not None and not mqtt_thread.is_alive()
+
+            if thread_dead or not mqtt_connected.is_set():
+                if thread_dead:
+                    print("⚠️ MQTT background thread đã dừng. Đang khởi tạo lại client...")
+                else:
+                    print("⚠️ MQTT chưa kết nối. Đang thử reconnect...")
+
+                try:
+                    client.disconnect()
+                except Exception:
+                    pass
+
+                client = build_mqtt_client()
+                connect_with_retry(client)
+
+            time.sleep(WATCHDOG_INTERVAL_SECONDS)
     except KeyboardInterrupt:
         print("\n🛑 Dừng subscriber")
     finally:
