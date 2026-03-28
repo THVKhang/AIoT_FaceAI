@@ -17,6 +17,7 @@ function isValidationError(reason) {
   return (
     reason.includes("feed_key không hợp lệ") ||
     reason.includes("Fan phải nằm trong khoảng") ||
+    reason.includes("Light phải nằm trong khoảng") ||
     reason.includes("Toggle chỉ nhận")
   );
 }

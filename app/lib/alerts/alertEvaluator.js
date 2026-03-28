@@ -22,6 +22,7 @@ export function evaluateAlerts(gaugeRows, stateRows) {
   const temp = toNumber(stateMap["sensor-temp"]?.value_num);
   const humid = toNumber(stateMap["sensor-humid"]?.value_num);
   const light = toNumber(stateMap["sensor-light"]?.value_num);
+  const fan = toNumber(stateMap.fan?.value_num);
   const motion = toNumber(stateMap["sensor-motion"]?.value_num);
   const faceResult = String(stateMap["faceai-result"]?.value_text || "").trim();
 
@@ -29,6 +30,8 @@ export function evaluateAlerts(gaugeRows, stateRows) {
   const humidLow = toNumber(gaugeMap["sensor-humid"]?.warn_low);
   const humidHigh = toNumber(gaugeMap["sensor-humid"]?.warn_high);
   const lightLow = toNumber(gaugeMap["sensor-light"]?.warn_low);
+  const lightHigh = toNumber(gaugeMap["sensor-light"]?.warn_high);
+  const fanHigh = toNumber(gaugeMap.fan?.warn_high);
 
   if (!Number.isNaN(light) && !Number.isNaN(lightLow) && light < lightLow) {
     alerts.push({
@@ -43,7 +46,7 @@ export function evaluateAlerts(gaugeRows, stateRows) {
   if (!Number.isNaN(temp) && !Number.isNaN(tempHigh) && temp > tempHigh) {
     alerts.push({
       code: "HOT",
-      severity: "warning",
+      severity: "error",
       title: "Nhiệt độ cao",
       message: `Nhiệt độ hiện tại ${temp}°C vượt ngưỡng ${tempHigh}°C.`,
       suggested_action: "Bật quạt hoặc giảm tải thiết bị.",
@@ -63,10 +66,30 @@ export function evaluateAlerts(gaugeRows, stateRows) {
   if (!Number.isNaN(humid) && !Number.isNaN(humidHigh) && humid > humidHigh) {
     alerts.push({
       code: "HUMID_HIGH",
-      severity: "warning",
+      severity: "error",
       title: "Độ ẩm cao",
       message: `Độ ẩm hiện tại ${humid}% vượt ngưỡng ${humidHigh}%.`,
       suggested_action: "Thông gió hoặc kiểm tra cảm biến/thiết bị.",
+    });
+  }
+
+  if (!Number.isNaN(light) && !Number.isNaN(lightHigh) && light > lightHigh) {
+    alerts.push({
+      code: "LIGHT_HIGH",
+      severity: "error",
+      title: "Ánh sáng vượt ngưỡng",
+      message: `Ánh sáng hiện tại ${light} vượt ngưỡng ${lightHigh}.`,
+      suggested_action: "Giảm độ sáng đèn hoặc chuyển về chế độ phù hợp.",
+    });
+  }
+
+  if (!Number.isNaN(fan) && !Number.isNaN(fanHigh) && fan > fanHigh) {
+    alerts.push({
+      code: "FAN_HIGH",
+      severity: "error",
+      title: "Tốc độ quạt vượt ngưỡng",
+      message: `Tốc độ quạt hiện tại ${fan}% vượt ngưỡng ${fanHigh}%.`,
+      suggested_action: "Giảm tốc độ quạt để đảm bảo an toàn vận hành.",
     });
   }
 
@@ -98,10 +121,10 @@ export function evaluateAlerts(gaugeRows, stateRows) {
   let overallMessage = "Hệ thống đang hoạt động bình thường.";
   let suggestedAction = "Tiếp tục giám sát dashboard.";
 
-  if (alerts.some((a) => a.code === "ALERT")) {
+  if (alerts.some((a) => a.severity === "error")) {
     overallStatus = "ALERT";
-    overallMessage = "Có cảnh báo an ninh cần xử lý ngay.";
-    suggestedAction = "Giữ cửa khóa và kiểm tra người trước cửa.";
+    overallMessage = "Có cảnh báo vượt ngưỡng hoặc an ninh cần xử lý ngay.";
+    suggestedAction = "Xử lý ngay các mục cảnh báo màu đỏ trên dashboard.";
   } else if (alerts.some((a) => a.code === "HOT")) {
     overallStatus = "HOT";
     overallMessage = "Nhiệt độ đang vượt ngưỡng cho phép.";

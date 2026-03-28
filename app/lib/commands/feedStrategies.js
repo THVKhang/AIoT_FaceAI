@@ -5,9 +5,8 @@ const FEED_DEFINITIONS = {
     offEvent: "Door Closed",
   },
   "button-light": {
-    type: "toggle",
-    onEvent: "Light ON",
-    offEvent: "Light OFF",
+    type: "range",
+    event: "Light Level Updated",
   },
   fan: {
     type: "range",
@@ -32,7 +31,15 @@ export function normalizeCommandValue(feedKey, value) {
     return String(num);
   }
 
-  if (feedKey === "button-door" || feedKey === "button-light") {
+  if (feedKey === "button-light") {
+    const num = Number(value);
+    if (Number.isNaN(num) || num < 0 || num > 100 || num % 10 !== 0) {
+      throw new Error("Light phải nằm trong khoảng 0-100 và bước nhảy 10");
+    }
+    return String(num);
+  }
+
+  if (feedKey === "button-door") {
     if (!(String(value) === "0" || String(value) === "1")) {
       throw new Error("Toggle chỉ nhận 0 hoặc 1");
     }
@@ -53,6 +60,13 @@ export function buildCommandEvent(feedKey, value) {
     return {
       eventName: config.event,
       details: `fan = ${value}%`,
+    };
+  }
+
+  if (feedKey === "button-light") {
+    return {
+      eventName: config.event,
+      details: `button-light = ${value}%`,
     };
   }
 

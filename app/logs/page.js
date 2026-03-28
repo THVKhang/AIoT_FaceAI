@@ -3,11 +3,7 @@
 import { useMemo, useState } from "react";
 import AppShell from "../components/AppShell";
 import useDashboardData from "../hooks/useDashboardData";
-import {
-  formatDateTime,
-  getSeverityColor,
-  getSourceColor,
-} from "../lib/DashboardClient";
+import { formatDateTime } from "../lib/DashboardClient";
 
 function StatCard({ label, value, tone = "neutral", icon = "LG" }) {
   return (
@@ -30,6 +26,24 @@ function sourceLabel(source) {
 function severityLabel(severity) {
   if (!severity) return "info";
   return String(severity);
+}
+
+function sourceTone(source) {
+  const value = String(source || "").toLowerCase();
+  if (value === "web") return "web";
+  if (value === "device") return "device";
+  if (value === "rule-engine" || value === "automation") return "automation";
+  if (value === "ai") return "ai";
+  return "neutral";
+}
+
+function severityTone(severity) {
+  const value = String(severity || "info").toLowerCase();
+  if (value === "error") return "danger";
+  if (value === "warning") return "warning";
+  if (value === "success") return "success";
+  if (value === "info") return "info";
+  return "neutral";
 }
 
 function toCsvCell(value) {
@@ -172,114 +186,104 @@ export default function LogsPage() {
           </div>
         </div>
 
-        <div className="logs-v2-timeline-block">
-          <div className="logs-v2-block-head">
-            <h2 className="section-title">Recent Activity Timeline</h2>
-          </div>
+        <div className="logs-v2-content-grid">
+          <aside className="surface-card logs-v2-timeline-panel">
+            <div className="logs-v2-block-head">
+              <h2 className="section-title">Recent Activity Timeline</h2>
+            </div>
 
-          <div className="logs-v2-timeline">
-            {timelineLogs.length === 0 ? (
-              <div className="surface-card">No logs match the current filters.</div>
-            ) : (
-              timelineLogs.map((log) => (
-                <div className="logs-v2-timeline-item" key={log.id}>
-                  <div className="logs-v2-timeline-dot" />
-                  <div className="logs-v2-timeline-card">
-                    <div className="logs-v2-timeline-top">
-                      <div className="logs-v2-timeline-left">
-                        <h3 className="logs-v2-event-title">{log.event_name}</h3>
-                        <div className="logs-v2-pill-row">
-                          <span
-                            className="pill"
-                            style={{ background: getSourceColor(log.source), color: "#fff" }}
-                          >
+            <div className="logs-v2-timeline">
+              {timelineLogs.length === 0 ? (
+                <div className="logs-v2-empty-state">No logs match the current filters.</div>
+              ) : (
+                timelineLogs.map((log) => (
+                  <div className="logs-v2-timeline-item" key={log.id}>
+                    <div className="logs-v2-timeline-dot" />
+                    <div className="logs-v2-timeline-card">
+                      <div className="logs-v2-timeline-top">
+                        <div className="logs-v2-timeline-left">
+                          <h3 className="logs-v2-event-title">{log.event_name}</h3>
+                          <div className="logs-v2-pill-row">
+                            <span className={`logs-v2-tag tone-${sourceTone(log.source)}`}>
+                              {sourceLabel(log.source)}
+                            </span>
+                            <span className={`logs-v2-tag tone-${severityTone(log.severity)}`}>
+                              {severityLabel(log.severity)}
+                            </span>
+                          </div>
+                        </div>
+                        <span className="logs-v2-event-time">{formatDateTime(log.timestamp)}</span>
+                      </div>
+
+                      <p className="logs-v2-event-detail">{log.log_details || "No details"}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </aside>
+
+          <div className="surface-card logs-v2-table-card">
+            <div className="logs-v2-table-head">
+              <h2 className="section-title">Detailed Log Explorer</h2>
+              <button
+                className="logs-v2-export-btn"
+                onClick={() => exportLogsAsCsv(filteredLogs)}
+                disabled={filteredLogs.length === 0}
+              >
+                Export CSV
+              </button>
+            </div>
+
+            <div className="logs-v2-table-wrap">
+              <table className="logs-v2-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Event Name</th>
+                    <th>Source</th>
+                    <th>Severity</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="logs-v2-empty-cell">
+                        No data
+                      </td>
+                    </tr>
+                  ) : (
+                    tableLogs.map((log) => (
+                      <tr key={`table-${log.id}`}>
+                        <td>{formatDateTime(log.timestamp)}</td>
+                        <td className="logs-v2-table-event">{log.event_name}</td>
+                        <td>
+                          <span className={`logs-v2-tag tone-${sourceTone(log.source)}`}>
                             {sourceLabel(log.source)}
                           </span>
-                          <span
-                            className="pill"
-                            style={{ background: getSeverityColor(log.severity), color: "#fff" }}
-                          >
+                        </td>
+                        <td>
+                          <span className={`logs-v2-tag tone-${severityTone(log.severity)}`}>
                             {severityLabel(log.severity)}
                           </span>
-                        </div>
-                      </div>
-                      <span className="logs-v2-event-time">{formatDateTime(log.timestamp)}</span>
-                    </div>
+                        </td>
+                        <td className="logs-v2-table-detail">{log.log_details || "No details"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-                    <p className="logs-v2-event-detail">{log.log_details || "No details"}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="surface-card logs-v2-table-card">
-          <div className="logs-v2-table-head">
-            <h2 className="section-title">Detailed Log Explorer</h2>
-            <button
-              className="logs-v2-export-btn"
-              onClick={() => exportLogsAsCsv(filteredLogs)}
-              disabled={filteredLogs.length === 0}
-            >
-              Export CSV
-            </button>
-          </div>
-
-          <div className="logs-v2-table-wrap">
-            <table className="logs-v2-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Event Name</th>
-                  <th>Source</th>
-                  <th>Severity</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tableLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="logs-v2-empty-cell">
-                      No data
-                    </td>
-                  </tr>
-                ) : (
-                  tableLogs.map((log) => (
-                    <tr key={`table-${log.id}`}>
-                      <td>{formatDateTime(log.timestamp)}</td>
-                      <td className="logs-v2-table-event">{log.event_name}</td>
-                      <td>
-                        <span
-                          className="pill"
-                          style={{ background: getSourceColor(log.source), color: "#fff" }}
-                        >
-                          {sourceLabel(log.source)}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          className="pill"
-                          style={{ background: getSeverityColor(log.severity), color: "#fff" }}
-                        >
-                          {severityLabel(log.severity)}
-                        </span>
-                      </td>
-                      <td className="logs-v2-table-detail">{log.log_details || "No details"}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="logs-v2-table-foot">
-            <span>
-              Showing {tableLogs.length} of {filteredLogs.length} entries
-            </span>
-            <div className="logs-v2-foot-actions">
-              <button disabled>Previous</button>
-              <button disabled={tableLogs.length === 0}>Next</button>
+            <div className="logs-v2-table-foot">
+              <span>
+                Showing {tableLogs.length} of {filteredLogs.length} entries
+              </span>
+              <div className="logs-v2-foot-actions">
+                <button disabled>Previous</button>
+                <button disabled={tableLogs.length === 0}>Next</button>
+              </div>
             </div>
           </div>
         </div>

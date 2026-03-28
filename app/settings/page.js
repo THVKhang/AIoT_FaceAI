@@ -18,27 +18,6 @@ function GuidanceCard({ title, note, range, tone = "neutral", tag = "Active" }) 
   );
 }
 
-function Recommendation({ title, description }) {
-  return (
-    <li className="settings-v2-recommend-item">
-      <p className="settings-v2-recommend-title">{title}</p>
-      <p className="settings-v2-recommend-text">{description}</p>
-    </li>
-  );
-}
-
-function QuickLog({ item }) {
-  return (
-    <div className="settings-v2-log-row">
-      <div>
-        <div className="settings-v2-log-event">{item.event_name || "No event"}</div>
-        <div className="settings-v2-log-time">{formatDateTime(item.timestamp)}</div>
-      </div>
-      <span className="settings-v2-log-source">{item.source || "system"}</span>
-    </div>
-  );
-}
-
 function toRangeText(gauge, fallbackUnit = "") {
   if (!gauge) return "--";
   const unit = gauge.unit || fallbackUnit;
@@ -67,7 +46,7 @@ function buildProfileTags(gauges) {
 }
 
 export default function SettingsPage() {
-  const { gauges, logs, lastUpdated } = useDashboardData();
+  const { gauges, lastUpdated } = useDashboardData();
 
   const tempGauge = gauges.find((g) => g.metric_key === "sensor-temp");
   const humidGauge = gauges.find((g) => g.metric_key === "sensor-humid");
@@ -75,7 +54,6 @@ export default function SettingsPage() {
   const fanGauge = gauges.find((g) => g.metric_key === "fan");
 
   const profileTags = buildProfileTags(gauges);
-  const recentLogs = (logs || []).slice(0, 3);
   const syncText = lastUpdated ? formatDateTime(lastUpdated) : "--";
 
   return (
@@ -89,117 +67,60 @@ export default function SettingsPage() {
         </div>
       }
     >
-      <section className="section-block settings-v2-shell">
-        <div className="settings-v2-layout">
-          <div className="settings-v2-main">
-            <section className="settings-v2-overview-grid">
-              <article className="settings-v2-overview-primary">
-                <h2>System Overview</h2>
-                <p>
-                  Manage AIoT sensor parameters and alert rules to keep device behavior stable.
-                  Better calibration reduces false positives and improves security confidence.
-                </p>
-              </article>
 
-              <article className="settings-v2-overview-stat">
-                <div className="settings-v2-overview-value">{profileTags.length || gauges.length || 0}</div>
-                <p>Active Configuration Profiles</p>
-                <div className="settings-v2-overview-tags">
-                  {(profileTags.length ? profileTags : ["TEMP", "HUM", "LUX", "FAN"]).map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
-                </div>
-              </article>
-            </section>
 
-            <section className="settings-v2-guidance-wrap">
-              <div className="settings-v2-section-head">
-                <h3>Threshold Guidance</h3>
-              </div>
-
-              <div className="settings-v2-guidance-grid">
-                <GuidanceCard
-                  title="Temperature"
-                  note={toWarnText(tempGauge, "C")}
-                  range={toRangeText(tempGauge, "C")}
-                  tone="danger"
-                  tag="Crucial"
-                />
-                <GuidanceCard
-                  title="Humidity"
-                  note={toWarnText(humidGauge, "%")}
-                  range={toRangeText(humidGauge, "%")}
-                  tone="info"
-                  tag="Active"
-                />
-                <GuidanceCard
-                  title="Light Lux"
-                  note={toWarnText(lightGauge, "lx")}
-                  range={toRangeText(lightGauge, "lx")}
-                  tone="warning"
-                  tag="Auto"
-                />
-                <GuidanceCard
-                  title="Fan Speed"
-                  note={toWarnText(fanGauge, "RPM")}
-                  range={toRangeText(fanGauge, "RPM")}
-                  tone="success"
-                  tag="Dynamic"
-                />
-              </div>
-            </section>
-
-            <section className="settings-v2-config-card">
-              <div className="settings-v2-config-head">
-                <div>
-                  <h3>Sensor Configuration Panel</h3>
-                  <p>Edit thresholds and save directly through the settings API.</p>
-                </div>
-                <span className="settings-v2-config-status">Ready to update</span>
-              </div>
-
-              <div className="settings-v2-panel-wrap">
-                <SettingsPanel theme="light" embedded />
-              </div>
-            </section>
+      <section className="section-block settings-clean-shell">
+        <section className="settings-clean-guidance">
+          <div className="settings-clean-head-row">
+            <h3>Threshold Guidance</h3>
+            <span>Set practical ranges before saving</span>
           </div>
 
-          <aside className="settings-v2-side">
-            <section className="settings-v2-side-card">
-              <h4>Quick Recommendations</h4>
-              <ul className="settings-v2-recommend-list">
-                <Recommendation
-                  title="Avoid narrow ranges"
-                  description="Very tight min-max windows can create jitter and repetitive alerts."
-                />
-                <Recommendation
-                  title="Keep warning zones meaningful"
-                  description="Use warning thresholds for non-urgent but actionable states."
-                />
-                <Recommendation
-                  title="Validate on real devices"
-                  description="After changing limits, test dashboard, alerts, and command behavior."
-                />
-              </ul>
-            </section>
+          <div className="settings-clean-guidance-grid">
+            <GuidanceCard
+              title="Temperature"
+              note={toWarnText(tempGauge, "C")}
+              range={toRangeText(tempGauge, "C")}
+              tone="danger"
+              tag="Crucial"
+            />
+            <GuidanceCard
+              title="Humidity"
+              note={toWarnText(humidGauge, "%")}
+              range={toRangeText(humidGauge, "%")}
+              tone="info"
+              tag="Active"
+            />
+            <GuidanceCard
+              title="Light Lux"
+              note={toWarnText(lightGauge, "lx")}
+              range={toRangeText(lightGauge, "lx")}
+              tone="warning"
+              tag="Auto"
+            />
+            <GuidanceCard
+              title="Fan Speed"
+              note={toWarnText(fanGauge, "%")}
+              range={toRangeText(fanGauge, "%")}
+              tone="success"
+              tag="Dynamic"
+            />
+          </div>
+        </section>
 
-            <section className="settings-v2-help-card">
-              <h4>Need Help?</h4>
-              <p>Check calibration guidelines before applying aggressive threshold values.</p>
-            </section>
+        <section className="settings-v2-config-card settings-clean-config-card">
+          <div className="settings-v2-config-head">
+            <div>
+              <h3>Sensor Configuration Panel</h3>
+              <p>Edit values directly and save each sensor row.</p>
+            </div>
+            <span className="settings-v2-config-status">Ready to update</span>
+          </div>
 
-            <section className="settings-v2-side-card dark">
-              <h4>Recent Logs</h4>
-              <div className="settings-v2-log-list">
-                {recentLogs.length ? (
-                  recentLogs.map((item) => <QuickLog key={item.id} item={item} />)
-                ) : (
-                  <p className="settings-v2-empty-log">No logs yet</p>
-                )}
-              </div>
-            </section>
-          </aside>
-        </div>
+          <div className="settings-v2-panel-wrap">
+            <SettingsPanel theme="light" embedded />
+          </div>
+        </section>
       </section>
     </AppShell>
   );

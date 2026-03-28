@@ -23,7 +23,9 @@ export function buildSettingsError(error) {
 
   const isValidationError =
     reason.includes("Giá trị số không hợp lệ") ||
-    reason.includes("Thiếu metric_key");
+    reason.includes("Thiếu metric_key") ||
+    reason.includes("Ngưỡng không hợp lệ") ||
+    reason.includes("Ngưỡng cảnh báo không hợp lệ");
 
   return {
     status: isValidationError ? 400 : 500,

@@ -16,6 +16,7 @@ export default function TopNav() {
   const pathname = usePathname();
   const [theme, setTheme] = useState("light");
   const [session, setSession] = useState(null);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -59,6 +60,15 @@ export default function TopNav() {
     };
   }, []);
 
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 8);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   function toggleTheme() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
@@ -66,9 +76,8 @@ export default function TopNav() {
     document.documentElement.classList.toggle("theme-dark", nextTheme === "dark");
   }
 
-
   return (
-    <header className="topnav">
+    <header className={`topnav${scrolled ? " topnav-scrolled" : ""}`}>
       <div className="topnav-brand">
         <div className="brand-mark">AI</div>
         <div className="brand-title">AIoT FaceAI</div>

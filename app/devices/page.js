@@ -27,7 +27,7 @@ export default function DevicesPage() {
   }, [stateMap]);
 
   const doorText = doorValue === 1 ? "OPEN" : "CLOSED";
-  const lightText = lightValue === 1 ? "ON" : "OFF";
+  const lightText = lightValue > 0 ? "ON" : "OFF";
   const motionText =
     Number(stateMap["sensor-motion"]?.value_num ?? 0) === 1 ? "DETECTED" : "CLEAR";
 
@@ -109,17 +109,50 @@ export default function DevicesPage() {
           <article className="devices-v2-card">
             <div className="devices-v2-card-head">
               <div className="devices-v2-icon tone-warm">Light</div>
-              <span className={`devices-v2-pill ${lightValue === 1 ? "tone-safe" : "tone-neutral"}`}>
+              <span className={`devices-v2-pill ${lightValue > 0 ? "tone-safe" : "tone-neutral"}`}>
                 {lightText}
               </span>
             </div>
 
             <h3 className="devices-v2-card-title">Light</h3>
 
+            <div className="devices-v2-slider-wrap">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="10"
+                value={lightValue}
+                onChange={(e) => setLightValue(Number(e.target.value))}
+                className="range-input"
+              />
+              <div className="devices-v2-scale-row">
+                <span>0%</span>
+                <span>50%</span>
+                <span>100%</span>
+              </div>
+            </div>
+
+            <div className="devices-v2-preset-row">
+              {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((preset) => (
+                <button
+                  key={preset}
+                  className={`devices-v2-preset ${lightValue === preset ? "is-active" : ""}`}
+                  onClick={() => setLightValue(preset)}
+                >
+                  {preset}%
+                </button>
+              ))}
+            </div>
+
             <div className="devices-v2-list">
               <div className="devices-v2-list-row">
                 <span>State</span>
                 <strong>{lightText}</strong>
+              </div>
+              <div className="devices-v2-list-row">
+                <span>Level</span>
+                <strong>{lightValue}%</strong>
               </div>
               <div className="devices-v2-list-row">
                 <span>Sensor</span>
@@ -130,14 +163,12 @@ export default function DevicesPage() {
             <div className="devices-v2-action-row one-col">
               <button
                 className="devices-v2-btn-primary"
-                onClick={() => sendCommand("button-light", lightValue === 1 ? 0 : 1)}
+                onClick={() => sendCommand("button-light", lightValue)}
                 disabled={commandLoading === "button-light"}
               >
                 {commandLoading === "button-light"
                   ? "Sending..."
-                  : lightValue === 1
-                    ? "TURN OFF"
-                    : "TURN ON"}
+                  : "Apply Light"}
               </button>
             </div>
 
