@@ -36,8 +36,8 @@ CANONICAL_FEEDS = {
     "button-door": "button-door",
     "button-light": "button-light",
     "fan": "fan",
-    "device-log":"device-log"
-    
+    "device-log":"device-log",
+    "faceai-cmd": "faceai-cmd"
 }
 
 # Subscribe nhiều alias để đỡ lệch tên feed khi demo

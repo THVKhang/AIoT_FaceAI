@@ -8,9 +8,10 @@ const FEED_DEFINITIONS = {
     type: "range",
     event: "Light Level Updated",
   },
-  fan: {
-    type: "range",
-    event: "Fan Speed Updated",
+  "faceai-cmd": {
+    type: "string",
+    onEvent: "Face AI Command Sent",
+    offEvent: "Face AI Command Sent",
   },
 };
 
@@ -42,6 +43,13 @@ export function normalizeCommandValue(feedKey, value) {
   if (feedKey === "button-door") {
     if (!(String(value) === "0" || String(value) === "1")) {
       throw new Error("Toggle chỉ nhận 0 hoặc 1");
+    }
+    return String(value);
+  }
+
+  if (feedKey === "faceai-cmd") {
+    if (!["on", "off", "register"].includes(String(value))) {
+      throw new Error("Lệnh Face AI không hợp lệ");
     }
     return String(value);
   }
