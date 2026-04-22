@@ -140,7 +140,7 @@ export default function AnalyticsPage() {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'bottom',
+        position: 'bottom' as const,
         labels: { color: '#94a3b8' }
       }
     },
