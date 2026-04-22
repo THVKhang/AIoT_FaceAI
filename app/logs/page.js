@@ -154,10 +154,10 @@ export default function LogsPage() {
 
       <section className="section-block logs-v2-shell">
         <div className="logs-v2-stats-grid">
-          <StatCard label="Total Logs" value={totalLogs} tone="info" icon="AN" />
-          <StatCard label="Warnings" value={warningCount} tone="warning" icon="WR" />
-          <StatCard label="Errors" value={errorCount} tone="danger" icon="ER" />
-          <StatCard label="Device Logs" value={deviceCount} tone="success" icon="DV" />
+          <StatCard label="Total Logs" value={totalLogs} tone="info" icon="📊" />
+          <StatCard label="Warnings" value={warningCount} tone="warning" icon="⚠️" />
+          <StatCard label="Errors" value={errorCount} tone="danger" icon="🔴" />
+          <StatCard label="Device Logs" value={deviceCount} tone="success" icon="📡" />
         </div>
 
         <div className="surface-card logs-v2-toolbar-card">

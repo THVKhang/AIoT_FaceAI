@@ -7,10 +7,11 @@ export async function POST(req) {
   try {
     const formData = await req.formData();
     const file = formData.get('file');
-    const vectorStr = formData.get('vector');
+    const vectorStr = formData.get('vector');     // single vector (legacy)
+    const vectorsStr = formData.get('vectors');   // multi-angle vectors array
 
-    if (!file || !vectorStr) {
-      return NextResponse.json({ error: 'Missing file or vector' }, { status: 400 });
+    if (!file || (!vectorStr && !vectorsStr)) {
+      return NextResponse.json({ error: 'Missing file or vector(s)' }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
@@ -25,12 +26,19 @@ export async function POST(req) {
     await fs.writeFile(filePath, buffer);
 
     const imageUrl = `/uploads/faces/${filename}`;
-    const vector = JSON.parse(vectorStr);
+    
+    // Support both single vector and multi-angle vectors
+    let faceVector;
+    if (vectorsStr) {
+      faceVector = JSON.parse(vectorsStr); // array of vectors [[...], [...], ...]
+    } else {
+      faceVector = JSON.parse(vectorStr);  // single vector [...]
+    }
 
     const result = await pool.query(
       `INSERT INTO face_users (name, face_vector, image_url, status) 
        VALUES ($1, $2, $3, 'Pending') RETURNING id`,
-      ['Unknown', JSON.stringify(vector), imageUrl]
+      ['Unknown', JSON.stringify(faceVector), imageUrl]
     );
 
     return NextResponse.json({ success: true, id: result.rows[0].id });

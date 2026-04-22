@@ -72,7 +72,7 @@ export default function DevicesPage() {
         <div className="devices-v2-grid">
           <article className="devices-v2-card">
             <div className="devices-v2-card-head">
-              <div className="devices-v2-icon tone-primary">Door</div>
+              <div className="devices-v2-icon tone-primary">🚪</div>
               <span className={`devices-v2-pill ${doorValue === 1 ? "tone-safe" : "tone-neutral"}`}>
                 {doorValue === 1 ? "OPEN" : "SECURE"}
               </span>
@@ -88,27 +88,25 @@ export default function DevicesPage() {
               <span className="devices-v2-tag">Motion: {motionText}</span>
             </div>
 
-            <div className="devices-v2-action-row">
+            <div className="devices-v2-action-row one-col">
               <button
-                className="devices-v2-btn-primary"
-                onClick={() => sendCommand("button-door", 1)}
+                className={`devices-v2-toggle-switch ${doorValue === 1 ? "is-on" : ""}`}
+                onClick={() => sendCommand("button-door", doorValue === 1 ? 0 : 1)}
                 disabled={commandLoading === "button-door"}
               >
-                {commandLoading === "button-door" ? "Sending..." : "OPEN"}
-              </button>
-              <button
-                className="devices-v2-btn-secondary"
-                onClick={() => sendCommand("button-door", 0)}
-                disabled={commandLoading === "button-door"}
-              >
-                CLOSE
+                <div className="toggle-track">
+                  <div className="toggle-thumb" />
+                </div>
+                <span className="toggle-label">
+                  {commandLoading === "button-door" ? "Sending..." : (doorValue === 1 ? "OPEN" : "CLOSED")}
+                </span>
               </button>
             </div>
           </article>
 
           <article className="devices-v2-card">
             <div className="devices-v2-card-head">
-              <div className="devices-v2-icon tone-warm">Light</div>
+              <div className="devices-v2-icon tone-warm">💡</div>
               <span className={`devices-v2-pill ${lightValue > 0 ? "tone-safe" : "tone-neutral"}`}>
                 {lightText}
               </span>
@@ -134,7 +132,7 @@ export default function DevicesPage() {
             </div>
 
             <div className="devices-v2-preset-row">
-              {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((preset) => (
+              {[0, 25, 50, 75, 100].map((preset) => (
                 <button
                   key={preset}
                   className={`devices-v2-preset ${lightValue === preset ? "is-active" : ""}`}
@@ -179,7 +177,7 @@ export default function DevicesPage() {
 
           <article className="devices-v2-card">
             <div className="devices-v2-card-head">
-              <div className="devices-v2-icon tone-cool">Fan</div>
+              <div className="devices-v2-icon tone-cool">🌀</div>
               <div className="devices-v2-speed-box">
                 <p>SPEED</p>
                 <strong>{fanValue}%</strong>

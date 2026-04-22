@@ -176,52 +176,33 @@ export default function DashboardPage() {
       {error && <div className="surface-card">{error}</div>}
 
       <section className="section-block">
-        <div className="dashboard-simple-hero">
-          <div className="dashboard-simple-hero-left">
-            <div className="dashboard-simple-label">Overview</div>
-            <h2 className="dashboard-simple-title">Smart door system is running</h2>
-            <p className="dashboard-simple-text">
-              Theo dõi dữ liệu môi trường, trạng thái cửa, nhận diện khuôn mặt và cảnh báo theo thời gian thực.
-            </p>
+        <div className="dash-quick-stats">
+          <div className="dash-quick-stat">
+            <div className="dash-quick-icon">🚪</div>
+            <div className="dash-quick-info">
+              <div className="dash-quick-value">{doorText}</div>
+              <div className="dash-quick-label">Door</div>
+            </div>
           </div>
-
-          <div className="dashboard-simple-hero-right">
-            <div className="realtime-summary-card">
-              <div className="realtime-summary-title">Realtime State</div>
-              <div className="realtime-summary-subtitle">
-                Current device and security status
-              </div>
-
-              <div className="realtime-summary-grid">
-                <RealtimeStatusCard
-                  title="Door"
-                  value={doorText}
-                  time={formatDateTime(stateMap["button-door"]?.updated_at)}
-                  tone={doorValue === 1 ? "success" : "neutral"}
-                />
-                <RealtimeStatusCard
-                  title="Light"
-                  value={lightText}
-                  time={formatDateTime(stateMap["button-light"]?.updated_at)}
-                  tone={lightValue === 1 ? "warning" : "neutral"}
-                />
-                <RealtimeStatusCard
-                  title="Motion"
-                  value={motionText}
-                  time={formatDateTime(stateMap["sensor-motion"]?.updated_at)}
-                  tone={motionValue === 1 ? "danger" : "success"}
-                />
-                <RealtimeStatusCard
-                  title="FaceAI"
-                  value={String(faceValue)}
-                  time={formatDateTime(stateMap["faceai-result"]?.updated_at)}
-                  tone={
-                    String(faceValue).toLowerCase() === "unknown"
-                      ? "danger"
-                      : "info"
-                  }
-                />
-              </div>
+          <div className="dash-quick-stat">
+            <div className="dash-quick-icon">💡</div>
+            <div className="dash-quick-info">
+              <div className="dash-quick-value">{lightText}</div>
+              <div className="dash-quick-label">Light</div>
+            </div>
+          </div>
+          <div className="dash-quick-stat">
+            <div className="dash-quick-icon">{motionValue === 1 ? "🔴" : "🟢"}</div>
+            <div className="dash-quick-info">
+              <div className="dash-quick-value">{motionText}</div>
+              <div className="dash-quick-label">Motion</div>
+            </div>
+          </div>
+          <div className="dash-quick-stat">
+            <div className="dash-quick-icon">🤖</div>
+            <div className="dash-quick-info">
+              <div className="dash-quick-value">{String(faceValue)}</div>
+              <div className="dash-quick-label">FaceAI</div>
             </div>
           </div>
         </div>

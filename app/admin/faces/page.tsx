@@ -3,90 +3,61 @@
 import { useState, useEffect } from 'react';
 import AppShell from '../../components/AppShell';
 
+const STREAM_URL = 'http://localhost:5001';
+
 export default function AdminFaces() {
   const [faces, setFaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cameraActive, setCameraActive] = useState(false);
+  const [streamCacheBuster, setStreamCacheBuster] = useState(Date.now());
   const [isSending, setIsSending] = useState(false);
 
-  useEffect(() => {
-    fetchFaces();
-  }, []);
+  useEffect(() => { fetchFaces(); }, []);
 
   const fetchFaces = async () => {
     try {
       const res = await fetch('/api/faces/all');
       const data = await res.json();
-      if (data.users) {
-        setFaces(data.users);
-      }
-    } catch (error) {
-      console.error('Failed to fetch faces', error);
-    } finally {
-      setLoading(false);
-    }
+      if (data.users) setFaces(data.users);
+    } catch (e) { console.error('Fetch error', e); }
+    finally { setLoading(false); }
   };
 
   const handleClassify = async (id: number, status: string, name: string) => {
     try {
       const res = await fetch('/api/faces/classify', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status, name }),
       });
-      if (res.ok) {
-        fetchFaces();
-      }
-    } catch (error) {
-      console.error('Failed to classify', error);
-      alert('Đã xảy ra lỗi hệ thống');
-    }
+      if (res.ok) fetchFaces();
+    } catch (e) { console.error(e); alert('Lỗi hệ thống'); }
   };
 
-  const toggleFaceAI = async (status: boolean) => {
+  const sendCommand = async (value: string) => {
     if (isSending) return;
     setIsSending(true);
     try {
-      const res = await fetch('/api/commands', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feed_key: 'faceai-cmd', value: status ? 'on' : 'off' })
-      });
-      if (!res.ok) {
-        const errorText = await res.text();
-        alert('Lỗi: ' + errorText);
-        return;
+      // Call Python service directly (instant, no MQTT delay)
+      const cmdMap: Record<string, string> = { on: '/cmd/on', off: '/cmd/off', register: '/cmd/register' };
+      const endpoint = cmdMap[value];
+      if (!endpoint) return;
+      
+      const res = await fetch(`${STREAM_URL}${endpoint}`);
+      if (!res.ok) { alert('Lỗi kết nối Python service'); return; }
+      
+      // Also send via MQTT as backup (non-blocking)
+      fetch('/api/commands', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feed_key: 'faceai-cmd', value })
+      }).catch(() => {});
+      
+      if (value === 'on' || value === 'register') {
+        setStreamCacheBuster(Date.now());
+        setCameraActive(true);
       }
-      setCameraActive(status);
-      alert(`Đã gửi lệnh ${status ? 'Bật' : 'Tắt'} Face AI`);
-    } catch (e) {
-      console.error(e);
-      alert('Đã xảy ra lỗi hệ thống');
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const startRegistration = async () => {
-    if (isSending) return;
-    setIsSending(true);
-    try {
-      const res = await fetch('/api/commands', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feed_key: 'faceai-cmd', value: 'register' })
-      });
-      if (!res.ok) {
-        alert('Lỗi: ' + await res.text());
-        return;
-      }
-      alert('Đã gửi lệnh bắt đầu quét Đăng ký (2 giây)');
-    } catch (e) {
-      console.error(e);
-      alert('Đã xảy ra lỗi hệ thống');
-    } finally {
-      setIsSending(false);
-    }
+      if (value === 'off') setCameraActive(false);
+    } catch (e) { console.error(e); alert('Không thể kết nối Python service. Kiểm tra service đã chạy chưa.'); }
+    finally { setIsSending(false); }
   };
 
   const pendingFaces = faces.filter(f => f.status === 'Pending');
@@ -95,108 +66,133 @@ export default function AdminFaces() {
   return (
     <AppShell
       title="Face AI Management"
-      subtitle="Phê duyệt khuôn mặt lạ và quản lý người dùng đã đăng ký"
-      actions={
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button 
-            disabled={isSending}
-            onClick={() => toggleFaceAI(true)}
-            style={{ 
-              padding: '8px 20px', borderRadius: '8px', 
-              background: isSending ? '#9ca3af' : '#2563eb', 
-              color: '#fff', border: 'none', cursor: isSending ? 'not-allowed' : 'pointer', 
-              fontWeight: 'bold', fontSize: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }}
+      subtitle="Nhận diện khuôn mặt, đăng ký user mới và phê duyệt quyền truy cập"
+    >
+      {/* ========== CAMERA MONITOR ========== */}
+      <div className="faceai-monitor">
+        <div className="faceai-monitor-header">
+          <div className="faceai-monitor-label">
+            <div className={`faceai-live-dot ${cameraActive ? 'is-active' : ''}`} />
+            <span className="faceai-monitor-tag">Live Camera Feed</span>
+          </div>
+          <span className="faceai-monitor-meta">
+            {cameraActive ? `Stream: localhost:5001` : 'Offline'}
+          </span>
+        </div>
+
+        <div className="faceai-monitor-viewport">
+          {cameraActive ? (
+            <img src={`${STREAM_URL}/video_feed?t=${streamCacheBuster}`} alt="Live Camera Feed" />
+          ) : (
+            <div className="faceai-monitor-placeholder">
+              <div className="faceai-monitor-placeholder-icon">📹</div>
+              <div className="faceai-monitor-placeholder-title">Camera đang tắt</div>
+              <div className="faceai-monitor-placeholder-text">
+                Nhấn "Bật Camera" bên dưới để bắt đầu stream video từ thiết bị.
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="faceai-actions-bar">
+          <div className="faceai-actions-group">
+            {!cameraActive ? (
+              <button
+                className="faceai-btn faceai-btn-primary"
+                disabled={isSending}
+                onClick={() => sendCommand('on')}
+              >
+                ▶ Bật Camera
+              </button>
+            ) : (
+              <button
+                className="faceai-btn faceai-btn-danger"
+                disabled={isSending}
+                onClick={() => sendCommand('off')}
+              >
+                ■ Tắt Camera
+              </button>
+            )}
+            <button
+              className="faceai-btn faceai-btn-success"
+              disabled={isSending}
+              onClick={() => sendCommand('register')}
+            >
+              + Đăng ký khuôn mặt
+            </button>
+          </div>
+          <button
+            className="faceai-btn faceai-btn-ghost"
+            onClick={fetchFaces}
           >
-            Bật Camera
-          </button>
-          <button 
-            disabled={isSending}
-            onClick={() => toggleFaceAI(false)}
-            style={{ 
-              padding: '8px 20px', borderRadius: '8px', 
-              background: isSending ? '#d1d5db' : '#fff', 
-              color: '#1f2937', border: '1px solid #d1d5db', cursor: isSending ? 'not-allowed' : 'pointer', 
-              fontWeight: 'bold', fontSize: '14px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-            }}
-          >
-            Tắt Camera
-          </button>
-          <button 
-            disabled={isSending}
-            onClick={startRegistration}
-            style={{ 
-              padding: '8px 20px', borderRadius: '8px', 
-              background: isSending ? '#9ca3af' : '#10b981', 
-              color: '#fff', border: 'none', cursor: isSending ? 'not-allowed' : 'pointer', 
-              fontWeight: 'bold', fontSize: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }}
-          >
-            Bắt đầu Đăng ký
+            ↻ Refresh Data
           </button>
         </div>
-      }
-    >
-      <section style={{ marginBottom: '32px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
-            Pending Approvals ({pendingFaces.length})
+      </div>
+
+      {/* ========== PENDING APPROVALS ========== */}
+      <div className="faceai-section">
+        <div className="faceai-section-header">
+          <h2 className="faceai-section-title">
+            Pending Approvals
+            {pendingFaces.length > 0 && (
+              <span className="faceai-badge-count">{pendingFaces.length}</span>
+            )}
           </h2>
+          <span className="faceai-section-caption">
+            Khuôn mặt lạ vừa được camera phát hiện
+          </span>
         </div>
 
         {loading ? (
-          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            Đang tải dữ liệu...
-          </div>
+          <div className="faceai-empty">Đang tải dữ liệu...</div>
         ) : pendingFaces.length === 0 ? (
-          <div style={{ background: '#fff', padding: '32px', borderRadius: '12px', border: '1px solid #e5e7eb', textAlign: 'center', color: '#6b7280', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="faceai-empty">
+            <div className="faceai-empty-icon">✅</div>
             Không có khuôn mặt nào đang chờ duyệt.
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
+          <div className="faceai-pending-grid">
             {pendingFaces.map((face) => (
-              <div key={face.id} style={{ 
-                background: '#fff', padding: '20px', borderRadius: '12px', 
-                border: '1px solid #e5e7eb', boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                display: 'flex', flexDirection: 'column', gap: '16px' 
-              }}>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                  <img 
-                    src={face.image_url} 
-                    alt="Pending Face" 
-                    style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #ef4444' }} 
+              <div key={face.id} className="faceai-pending-card">
+                <div className="faceai-pending-top">
+                  <img
+                    src={face.image_url}
+                    alt="Detected face"
+                    className="faceai-pending-thumb"
                   />
-                  <div>
-                    <div style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '4px' }}>
-                      ⚠️ STRANGER DETECTED
-                    </div>
-                    <div style={{ fontSize: '0.9rem', color: '#4b5563' }}>Face ID: #{face.id}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
+                  <div className="faceai-pending-info">
+                    <div className="faceai-pending-alert">⚠ Stranger Detected</div>
+                    <div className="faceai-pending-id">Face ID #{face.id}</div>
+                    <div className="faceai-pending-time">
                       {new Date(face.created_at).toLocaleString('vi-VN')}
                     </div>
                   </div>
                 </div>
-                
-                <input 
+
+                <input
                   id={`name-${face.id}`}
-                  defaultValue={face.name !== 'Unknown' ? face.name : ''}
+                  className="faceai-pending-input"
                   placeholder="Nhập tên người dùng..."
-                  style={{
-                    width: '100%', padding: '10px 14px', borderRadius: '6px', 
-                    border: '1px solid #d1d5db', fontSize: '14px', outline: 'none'
-                  }}
+                  defaultValue={face.name !== 'Unknown' ? face.name : ''}
                 />
-                
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button 
-                    onClick={() => handleClassify(face.id, 'Invalid', (document.getElementById(`name-${face.id}`) as HTMLInputElement).value)}
-                    style={{ flex: 1, padding: '10px', borderRadius: '6px', background: '#fef2f2', border: '1px solid #fecaca', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer' }}
+
+                <div className="faceai-pending-actions">
+                  <button
+                    className="faceai-reject-btn"
+                    onClick={() => handleClassify(
+                      face.id, 'Invalid',
+                      (document.getElementById(`name-${face.id}`) as HTMLInputElement).value
+                    )}
                   >
                     Từ chối
                   </button>
-                  <button 
-                    onClick={() => handleClassify(face.id, 'Valid', (document.getElementById(`name-${face.id}`) as HTMLInputElement).value || 'Unknown')}
-                    style={{ flex: 1, padding: '10px', borderRadius: '6px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#2563eb', fontWeight: 'bold', cursor: 'pointer' }}
+                  <button
+                    className="faceai-approve-btn"
+                    onClick={() => handleClassify(
+                      face.id, 'Valid',
+                      (document.getElementById(`name-${face.id}`) as HTMLInputElement).value || 'Unknown'
+                    )}
                   >
                     Phê duyệt
                   </button>
@@ -205,73 +201,58 @@ export default function AdminFaces() {
             ))}
           </div>
         )}
-      </section>
+      </div>
 
-      <section style={{ marginBottom: '32px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
-            Registered Users ({registeredFaces.length})
-          </h2>
+      {/* ========== REGISTERED USERS ========== */}
+      <div className="faceai-section">
+        <div className="faceai-section-header">
+          <h2 className="faceai-section-title">Registered Users</h2>
+          <span className="faceai-section-caption">
+            Tổng cộng {registeredFaces.length} người dùng
+          </span>
         </div>
 
-        <div style={{ 
-          background: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', 
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)', overflowX: 'auto' 
-        }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '600px' }}>
-            <thead style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+        <div className="faceai-table-wrap" style={{ overflowX: 'auto' }}>
+          <table className="faceai-table">
+            <thead>
               <tr>
-                <th style={{ padding: '16px 24px', fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Profile</th>
-                <th style={{ padding: '16px 24px', fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Name & Status</th>
-                <th style={{ padding: '16px 24px', fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Registered Date</th>
-                <th style={{ padding: '16px 24px', fontSize: '0.75rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Actions</th>
+                <th>Profile</th>
+                <th>Name &amp; Status</th>
+                <th>Registered</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
-            <tbody style={{ divideY: '1px solid #e5e7eb' }}>
+            <tbody>
               {registeredFaces.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: '32px', textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={4} style={{ textAlign: 'center', padding: '36px 22px', color: '#64748b' }}>
                     Chưa có người dùng nào được duyệt.
                   </td>
                 </tr>
               ) : registeredFaces.map((face) => (
-                <tr key={face.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '16px 24px' }}>
-                    <img 
-                      src={face.image_url} 
-                      alt="Profile" 
-                      style={{ 
-                        width: '48px', height: '48px', objectFit: 'cover', borderRadius: '50%',
-                        opacity: face.status === 'Invalid' ? 0.5 : 1,
-                        filter: face.status === 'Invalid' ? 'grayscale(100%)' : 'none',
-                        border: '1px solid #e5e7eb'
-                      }} 
+                <tr key={face.id}>
+                  <td>
+                    <img
+                      src={face.image_url}
+                      alt={face.name}
+                      className={`faceai-user-avatar ${face.status === 'Invalid' ? 'is-revoked' : ''}`}
                     />
                   </td>
-                  <td style={{ padding: '16px 24px' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#1f2937' }}>{face.name}</div>
-                    <div style={{ 
-                      display: 'inline-block', marginTop: '6px', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold',
-                      background: face.status === 'Valid' ? '#d1fae5' : '#fee2e2',
-                      color: face.status === 'Valid' ? '#059669' : '#dc2626'
-                    }}>
+                  <td>
+                    <div className="faceai-user-name">{face.name}</div>
+                    <div className={`faceai-status-chip ${face.status === 'Valid' ? 'approved' : 'rejected'}`}>
                       {face.status === 'Valid' ? 'APPROVED' : 'REJECTED'}
                     </div>
                   </td>
-                  <td style={{ padding: '16px 24px', color: '#4b5563', fontSize: '0.9rem' }}>
+                  <td style={{ color: '#64748b', fontSize: '14px' }}>
                     {new Date(face.created_at).toLocaleDateString('vi-VN')}
                   </td>
-                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                    <button 
+                  <td style={{ textAlign: 'right' }}>
+                    <button
+                      className={`faceai-table-action ${face.status === 'Valid' ? 'revoke' : 'restore'}`}
                       onClick={() => handleClassify(face.id, face.status === 'Valid' ? 'Invalid' : 'Valid', face.name)}
-                      style={{ 
-                        padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem',
-                        background: face.status === 'Valid' ? '#fff' : '#eff6ff',
-                        color: face.status === 'Valid' ? '#ef4444' : '#2563eb',
-                        border: face.status === 'Valid' ? '1px solid #fca5a5' : '1px solid #bfdbfe'
-                      }}
                     >
-                      {face.status === 'Valid' ? 'Revoke Access' : 'Restore Access'}
+                      {face.status === 'Valid' ? 'Revoke' : 'Restore'}
                     </button>
                   </td>
                 </tr>
@@ -279,7 +260,7 @@ export default function AdminFaces() {
             </tbody>
           </table>
         </div>
-      </section>
+      </div>
     </AppShell>
   );
 }

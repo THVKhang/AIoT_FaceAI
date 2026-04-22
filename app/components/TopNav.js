@@ -9,6 +9,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/devices", label: "Devices" },
   { href: "/admin/faces", label: "Face AI" },
+  { href: "/admin/analytics", label: "Analytics" },
   { href: "/settings", label: "Settings" },
   { href: "/logs", label: "Logs" },
 ];
@@ -80,8 +81,11 @@ export default function TopNav() {
   return (
     <header className={`topnav${scrolled ? " topnav-scrolled" : ""}`}>
       <div className="topnav-brand">
-        <div className="brand-mark">AI</div>
-        <div className="brand-title">AIoT FaceAI</div>
+        <div className="brand-mark">
+          AI
+          <span className="brand-online-dot" />
+        </div>
+        <div className="brand-title">YoloHome</div>
       </div>
 
       <nav className="topnav-menu">
@@ -104,21 +108,13 @@ export default function TopNav() {
           type="button"
           className={`theme-toggle-btn ${theme === "dark" ? "is-light" : "is-dark"}`}
           onClick={toggleTheme}
-          aria-label={theme === "dark" ? "Chuyen sang che do sang" : "Chuyen sang che do toi"}
+          aria-label={theme === "dark" ? "Light mode" : "Dark mode"}
           title={theme === "dark" ? "Light mode" : "Dark mode"}
         >
           <span className="theme-toggle-icon" aria-hidden="true">
             {theme === "dark" ? "☀" : "☾"}
           </span>
-          <span className="theme-toggle-text">
-            {theme === "dark" ? "Light" : "Dark"}
-          </span>
         </button>
-
-        <div className="system-badge">
-          <span className="status-dot" />
-          Online
-        </div>
 
         {session?.username && (
           <div className="user-info">

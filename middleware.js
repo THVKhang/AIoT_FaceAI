@@ -14,7 +14,9 @@ export function middleware(request) {
   const isRegisterApi = pathname.startsWith("/api/register");
   const isForgotApi = pathname.startsWith("/api/forgot-password");
   const isResetApi = pathname.startsWith("/api/reset-password");
-  if (isLoginApi || isLogoutApi || isRegisterApi || isForgotApi || isResetApi) {
+  // Allow Face AI Python service to call these without session
+  const isFaceApi = pathname.startsWith("/api/faces/upload") || pathname.startsWith("/api/faces/identify");
+  if (isLoginApi || isLogoutApi || isRegisterApi || isForgotApi || isResetApi || isFaceApi) {
     return NextResponse.next();
   }
 
