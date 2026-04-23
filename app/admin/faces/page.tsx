@@ -82,6 +82,23 @@ export default function AdminFaces() {
     finally { setIsSending(false); }
   };
 
+  const sendDoorCommand = async (value: string) => {
+    if (isSending) return;
+    setIsSending(true);
+    try {
+      await fetch('/api/commands', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feed_key: 'button-door', value })
+      });
+      // Optionally alert or just let it be silent
+    } catch (e) {
+      console.error(e);
+      alert('Lỗi gửi lệnh cửa.');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const pendingFaces = faces.filter(f => f.status === 'Pending');
   const registeredFaces = faces.filter(f => f.status !== 'Pending');
 
@@ -141,6 +158,22 @@ export default function AdminFaces() {
               onClick={() => sendCommand('register')}
             >
               + Đăng ký khuôn mặt
+            </button>
+            <button
+              className="faceai-btn faceai-btn-ghost"
+              style={{ marginLeft: 8, borderColor: '#3b82f6', color: '#3b82f6' }}
+              disabled={isSending}
+              onClick={() => sendDoorCommand('1')}
+            >
+              🔓 Mở Cửa
+            </button>
+            <button
+              className="faceai-btn faceai-btn-ghost"
+              style={{ marginLeft: 8 }}
+              disabled={isSending}
+              onClick={() => sendDoorCommand('0')}
+            >
+              🔒 Đóng Cửa
             </button>
           </div>
           <button
