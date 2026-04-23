@@ -17,15 +17,9 @@ export async function POST(req) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Ensure directory exists
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'faces');
-    await fs.mkdir(uploadDir, { recursive: true });
-
-    const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const filePath = path.join(uploadDir, filename);
-    await fs.writeFile(filePath, buffer);
-
-    const imageUrl = `/uploads/faces/${filename}`;
+    // Convert image buffer to base64 string for Vercel compatibility
+    const base64Image = buffer.toString('base64');
+    const imageUrl = `data:${file.type || 'image/jpeg'};base64,${base64Image}`;
     
     // Support both single vector and multi-angle vectors
     let faceVector;

@@ -32,8 +32,8 @@ FEED_DOOR = "button-door"
 FEED_CMD = "faceai-cmd"
 
 # API Endpoints
-# Always use localhost for face API since Python service runs locally
-API_BASE_URL = os.getenv("FACE_API_URL", "http://localhost:3000")
+# Use deployed Vercel URL so python script works without local Next.js server
+API_BASE_URL = os.getenv("FACE_API_URL", "https://hcmutfaceai.vercel.app")
 API_UPLOAD = f"{API_BASE_URL}/api/faces/upload"
 API_IDENTIFY = f"{API_BASE_URL}/api/faces/identify"
 
