@@ -41,7 +41,17 @@ export default function AdminFaces() {
         body: JSON.stringify({ id })
       });
       if (res.ok) fetchFaces();
-    } catch (e) { console.error(e); alert('Lỗi hệ thống'); }
+    } catch (e) {
+      console.error(e);
+      alert('Lỗi cập nhật / xóa dữ liệu');
+    }
+  };
+
+  const handleRename = (id: number, status: string, currentName: string) => {
+    const newName = window.prompt('Nhập tên mới cho người dùng này:', currentName);
+    if (newName !== null && newName.trim() !== '') {
+      handleClassify(id, status, newName.trim());
+    }
   };
 
   const sendCommand = async (value: string) => {
@@ -303,6 +313,13 @@ export default function AdminFaces() {
                     {new Date(face.created_at).toLocaleDateString('vi-VN')}
                   </td>
                   <td style={{ textAlign: 'right' }}>
+                    <button
+                      className="faceai-table-action"
+                      style={{ color: '#3b82f6', marginRight: '8px' }}
+                      onClick={() => handleRename(face.id, face.status, face.name)}
+                    >
+                      Đổi tên
+                    </button>
                     <button
                       className={`faceai-table-action ${face.status === 'Valid' ? 'revoke' : 'restore'}`}
                       onClick={() => handleClassify(face.id, face.status === 'Valid' ? 'Invalid' : 'Valid', face.name)}
