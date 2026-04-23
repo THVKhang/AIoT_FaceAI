@@ -37,26 +37,37 @@ export default function AdminFaces() {
     if (isSending) return;
     setIsSending(true);
     try {
-      // Call Python service directly (instant, no MQTT delay)
+      // 1. Try calling Python service directly (instant, no MQTT delay)
       const cmdMap: Record<string, string> = { on: '/cmd/on', off: '/cmd/off', register: '/cmd/register' };
       const endpoint = cmdMap[value];
-      if (!endpoint) return;
       
-      const res = await fetch(`${STREAM_URL}${endpoint}`);
-      if (!res.ok) { alert('Lỗi kết nối Python service'); return; }
+      let directSuccess = false;
+      if (endpoint) {
+        try {
+          const res = await fetch(`${STREAM_URL}${endpoint}`);
+          if (res.ok) directSuccess = true;
+        } catch (e) {
+          console.warn('Direct HTTP to Python service failed, falling back to MQTT...', e);
+        }
+      }
       
-      // Also send via MQTT as backup (non-blocking)
-      fetch('/api/commands', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feed_key: 'faceai-cmd', value })
-      }).catch(() => {});
+      // 2. If direct fails (e.g. deployed on Vercel), send via MQTT
+      if (!directSuccess) {
+        await fetch('/api/commands', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feed_key: 'faceai-cmd', value })
+        });
+      }
       
       if (value === 'on' || value === 'register') {
         setStreamCacheBuster(Date.now());
         setCameraActive(true);
       }
       if (value === 'off') setCameraActive(false);
-    } catch (e) { console.error(e); alert('Không thể kết nối Python service. Kiểm tra service đã chạy chưa.'); }
+    } catch (e) { 
+      console.error(e); 
+      alert('Lỗi hệ thống khi gửi lệnh.'); 
+    }
     finally { setIsSending(false); }
   };
 
