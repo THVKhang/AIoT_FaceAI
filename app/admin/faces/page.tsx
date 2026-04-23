@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import AppShell from '../../components/AppShell';
 
-const STREAM_URL = 'http://localhost:5001';
+const STREAM_URL = process.env.NEXT_PUBLIC_STREAM_URL || 'http://localhost:5001';
 
 export default function AdminFaces() {
   const [faces, setFaces] = useState<any[]>([]);
@@ -28,6 +28,17 @@ export default function AdminFaces() {
       const res = await fetch('/api/faces/classify', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status, name }),
+      });
+      if (res.ok) fetchFaces();
+    } catch (e) { console.error(e); alert('Lỗi hệ thống'); }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn khuôn mặt này khỏi hệ thống?')) return;
+    try {
+      const res = await fetch('/api/faces/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
       });
       if (res.ok) fetchFaces();
     } catch (e) { console.error(e); alert('Lỗi hệ thống'); }
@@ -264,6 +275,14 @@ export default function AdminFaces() {
                       onClick={() => handleClassify(face.id, face.status === 'Valid' ? 'Invalid' : 'Valid', face.name)}
                     >
                       {face.status === 'Valid' ? 'Revoke' : 'Restore'}
+                    </button>
+                    <button
+                      className="faceai-table-action"
+                      style={{ color: '#ef4444', marginLeft: '8px', padding: '4px 8px' }}
+                      title="Xóa vĩnh viễn"
+                      onClick={() => handleDelete(face.id)}
+                    >
+                      ✕
                     </button>
                   </td>
                 </tr>
