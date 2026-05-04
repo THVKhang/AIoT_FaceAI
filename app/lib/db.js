@@ -29,6 +29,9 @@ const poolConfig = hasConnectionString
   ? {
       connectionString: normalizedConnectionString,
       ssl: shouldUseSsl ? { rejectUnauthorized: rejectUnauthorizedFlag } : undefined,
+      max: 20, // Max 20 connections in pool
+      idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
+      connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
     }
   : {
       host: process.env.DB_HOST || "localhost",
@@ -37,6 +40,9 @@ const poolConfig = hasConnectionString
       user: process.env.DB_USER || "postgres",
       password: process.env.DB_PASSWORD || "",
       ssl: shouldUseSsl ? { rejectUnauthorized: rejectUnauthorizedFlag } : undefined,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
     };
 
 export const pool =

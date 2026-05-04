@@ -43,10 +43,17 @@ function matchVectors(probeVector, storedData) {
 
 export async function POST(req) {
   try {
-    const { vector } = await req.json();
+    let payload;
+    try {
+      payload = await req.json();
+    } catch (e) {
+      return NextResponse.json({ success: false, error: 'Invalid JSON payload', code: 'INVALID_JSON' }, { status: 400 });
+    }
+    
+    const { vector } = payload;
 
-    if (!vector || !Array.isArray(vector)) {
-      return NextResponse.json({ error: 'Invalid vector' }, { status: 400 });
+    if (!vector || !Array.isArray(vector) || vector.length === 0) {
+      return NextResponse.json({ success: false, error: 'Invalid vector data. Must be a non-empty array.', code: 'INVALID_VECTOR' }, { status: 400 });
     }
 
     const result = await pool.query(`SELECT id, name, face_vector FROM face_users WHERE status = 'Valid'`);
@@ -78,7 +85,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'No matching valid face found', bestDistance: bestDistanceOverall === Infinity ? null : bestDistanceOverall });
     }
   } catch (error) {
-    console.error('Identify error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('[API Identify] Error:', error);
+    return NextResponse.json({ success: false, error: 'Internal Server Error', code: 'SERVER_ERROR' }, { status: 500 });
   }
 }

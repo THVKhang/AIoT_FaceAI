@@ -5,10 +5,15 @@ export const metadata = {
   description: "YoloHome ",
 };
 
+import { Toaster } from 'sonner';
+
 export default function RootLayout({ children }) {
   return (
     <html lang="vi">
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster richColors position="top-right" />
+      </body>
     </html>
   );
 }

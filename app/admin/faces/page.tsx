@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
+import { toast } from 'sonner';
 
 const STREAM_URL = process.env.NEXT_PUBLIC_STREAM_URL || 'http://localhost:5001';
 
@@ -49,27 +50,42 @@ export default function AdminFaces() {
   };
 
   const handleClassify = async (id: number, status: string, name: string) => {
-    try {
-      const res = await fetch('/api/faces/classify', {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status, name }),
-      });
-      if (res.ok) fetchFaces();
-    } catch (e) { console.error(e); alert('Lỗi hệ thống'); }
+    const promise = fetch('/api/faces/classify', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status, name }),
+    }).then(res => {
+      if (!res.ok) throw new Error('Cập nhật thất bại');
+      return res;
+    });
+
+    toast.promise(promise, {
+      loading: 'Đang xử lý...',
+      success: () => {
+        fetchFaces();
+        return 'Cập nhật thành công';
+      },
+      error: 'Lỗi hệ thống khi cập nhật'
+    });
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Bạn có chắc chắn muốn xóa vĩnh viễn khuôn mặt này khỏi hệ thống?')) return;
-    try {
-      const res = await fetch('/api/faces/delete', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-      });
-      if (res.ok) fetchFaces();
-    } catch (e) {
-      console.error(e);
-      alert('Lỗi cập nhật / xóa dữ liệu');
-    }
+    const promise = fetch('/api/faces/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id })
+    }).then(res => {
+      if (!res.ok) throw new Error('Xóa thất bại');
+      return res;
+    });
+
+    toast.promise(promise, {
+      loading: 'Đang xóa...',
+      success: () => {
+        fetchFaces();
+        return 'Đã xóa khuôn mặt khỏi hệ thống';
+      },
+      error: 'Lỗi cập nhật / xóa dữ liệu'
+    });
   };
 
   const handleRename = (id: number, status: string, currentName: string) => {
@@ -440,7 +456,7 @@ export default function AdminFaces() {
         <div className="faceai-section-header">
           <h2 className="faceai-section-title">
             Pending Approvals
-            {pendingFaces.length > 0 && (
+            {pendingFaces.length > 0 && !loading && (
               <span className="faceai-badge-count">{pendingFaces.length}</span>
             )}
           </h2>
@@ -450,7 +466,19 @@ export default function AdminFaces() {
         </div>
 
         {loading ? (
-          <div className="faceai-empty">Đang tải dữ liệu...</div>
+          <div className="faceai-pending-grid">
+            {[1, 2].map(i => (
+              <div key={i} className="faceai-pending-card" style={{ opacity: 0.5 }}>
+                <div className="faceai-pending-top">
+                  <div style={{ width: 64, height: 64, borderRadius: 12, background: '#1e293b', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                  <div className="faceai-pending-info">
+                    <div style={{ width: 100, height: 16, background: '#1e293b', borderRadius: 4, marginBottom: 8 }} />
+                    <div style={{ width: 80, height: 12, background: '#1e293b', borderRadius: 4 }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : pendingFaces.length === 0 ? (
           <div className="faceai-empty">
             <div className="faceai-empty-icon">✅</div>
@@ -528,7 +556,21 @@ export default function AdminFaces() {
               </tr>
             </thead>
             <tbody>
-              {registeredFaces.length === 0 ? (
+              {loading ? (
+                <>
+                  {[1, 2, 3].map(i => (
+                    <tr key={`skel-${i}`} style={{ opacity: 0.5, animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
+                      <td><div style={{ width: 40, height: 40, borderRadius: '50%', background: '#1e293b' }} /></td>
+                      <td>
+                        <div style={{ width: 120, height: 16, background: '#1e293b', borderRadius: 4, marginBottom: 6 }} />
+                        <div style={{ width: 60, height: 12, background: '#1e293b', borderRadius: 4 }} />
+                      </td>
+                      <td><div style={{ width: 80, height: 14, background: '#1e293b', borderRadius: 4 }} /></td>
+                      <td><div style={{ width: 100, height: 24, background: '#1e293b', borderRadius: 4, float: 'right' }} /></td>
+                    </tr>
+                  ))}
+                </>
+              ) : registeredFaces.length === 0 ? (
                 <tr>
                   <td colSpan={4} style={{ textAlign: 'center', padding: '36px 22px', color: '#64748b' }}>
                     Chưa có người dùng nào được duyệt.
