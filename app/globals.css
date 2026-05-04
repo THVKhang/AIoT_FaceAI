@@ -4113,7 +4113,8 @@ html.theme-dark .settings-clean-head-row span {
     #080e1a;
 }
 
-.faceai-monitor-viewport img {
+.faceai-monitor-viewport img,
+.faceai-monitor-viewport video {
   width: 100%;
   max-height: 480px;
   object-fit: contain;

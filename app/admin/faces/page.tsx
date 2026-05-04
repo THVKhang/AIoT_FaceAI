@@ -302,22 +302,18 @@ export default function AdminFaces() {
           {cameraMode === 'stream' ? (
             <img src={`${STREAM_URL}/video_feed?t=${streamCacheBuster}`} alt="Live Camera Feed" />
           ) : cameraMode === 'webcam' ? (
-            <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
+            <>
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '460px',
-                  borderRadius: '12px',
-                  objectFit: 'cover',
-                  transform: 'scaleX(-1)',
-                }}
+                width={640}
+                height={480}
+                style={{ transform: 'scaleX(-1)' }}
               />
               <canvas ref={canvasRef} style={{ display: 'none' }} />
-            </div>
+            </>
           ) : (
             <div className="faceai-monitor-placeholder">
               <div className="faceai-monitor-placeholder-icon">📹</div>
