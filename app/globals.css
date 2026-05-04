@@ -65,6 +65,34 @@ body {
   scroll-behavior: smooth;
 }
 
+/* Global button/input micro-interactions */
+button, a {
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), 
+              opacity 0.2s ease, 
+              background-color 0.2s ease, 
+              box-shadow 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+input, textarea, select {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(91, 97, 245, 0.4);
+}
+
+html.theme-dark input:focus-visible, 
+html.theme-dark textarea:focus-visible, 
+html.theme-dark select:focus-visible, 
+html.theme-dark button:focus-visible {
+  box-shadow: 0 0 0 3px rgba(123, 128, 255, 0.4);
+}
+
 :root {
   --bg: #f7f7f5;
   --text: #191919;
@@ -180,14 +208,8 @@ html.theme-dark .app-shell-bg {
   display: grid;
   place-items: center;
   padding: 24px;
-  background-color: #e0e8ff;
-  background-image:
-    linear-gradient(165deg, rgba(224, 232, 255, 0.08) 0%, rgba(200, 212, 255, 0.1) 55%, rgba(192, 208, 255, 0.08) 100%),
-    url("/images/school-bg.jpg");
-  background-size: cover, cover;
-  background-position: center, center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-color: var(--bg);
+  background-image: none;
   overflow: hidden;
 }
 
@@ -200,30 +222,22 @@ html.theme-dark .app-shell-bg {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  filter: grayscale(80%) opacity(0.15);
   transform: scale(1.02);
 }
 
 .login-v2-bg-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  background:
-    radial-gradient(circle at 20% 16%, rgba(255, 255, 255, 0.1), transparent 32%),
-    radial-gradient(circle at 84% 8%, rgba(255, 255, 255, 0.08), transparent 34%),
-    radial-gradient(circle at 50% 100%, rgba(120, 150, 255, 0.08), transparent 36%),
-    linear-gradient(180deg, rgba(17, 42, 88, 0.08) 0%, rgba(17, 42, 88, 0.12) 100%);
+  display: none;
 }
 
 .login-v2-page::before {
   content: "";
   position: absolute;
-  inset: -8% -6%;
+  inset: -10%;
   z-index: 1;
   pointer-events: none;
-  background:
-    radial-gradient(520px 220px at 12% 18%, rgba(153, 184, 255, 0.06), transparent 65%),
-    radial-gradient(460px 200px at 84% 20%, rgba(130, 168, 255, 0.05), transparent 65%);
+  background: radial-gradient(circle at 50% 50%, var(--vf-primary-light), transparent 60%);
+  opacity: 0.5;
 }
 
 .login-v2-page > .login-v2-card {
@@ -234,14 +248,15 @@ html.theme-dark .app-shell-bg {
 .login-v2-card {
   position: relative;
   z-index: 1;
-  width: min(100%, 460px);
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 24px 50px rgba(7, 20, 63, 0.4);
-  padding: 34px 30px 24px;
+  width: min(100%, 420px);
+  border-radius: 24px;
+  border: 1px solid var(--vf-card-border);
+  background: var(--vf-nav-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: var(--vf-card-shadow);
+  padding: 40px 32px 32px;
+  animation: fadeInUp 0.5s ease-out;
 }
 
 .login-v2-header {
@@ -1001,13 +1016,14 @@ html.theme-dark .topnav-brand {
 }
 
 .topnav-link {
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
   color: var(--text-secondary);
   font-weight: 500;
-  font-size: 15px;
-  transition: 0.2s ease;
+  font-size: 14px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   background: transparent;
+  border: 1px solid transparent;
 }
 
 .topnav-link:hover {
@@ -1016,14 +1032,21 @@ html.theme-dark .topnav-brand {
 }
 
 .topnav-link.active {
-  color: var(--text);
+  color: #fff;
   font-weight: 600;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--vf-primary);
+  border-color: rgba(0,0,0,0.05);
+  box-shadow: 0 4px 12px rgba(91, 97, 245, 0.2);
 }
 
-html.theme-dark .topnav-link:hover,
-html.theme-dark .topnav-link.active {
+html.theme-dark .topnav-link:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+html.theme-dark .topnav-link.active {
+  color: #fff;
+  background: var(--vf-primary);
+  box-shadow: 0 4px 14px rgba(123, 128, 255, 0.25);
 }
 
 .topnav-right {
