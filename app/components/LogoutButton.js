@@ -23,15 +23,14 @@ export default function LogoutButton() {
 
 const styles = {
   button: {
-    background: "#e8834a",
+    background: "var(--vf-cta, #5B61F5)",
     color: "#fff",
     border: "none",
-    borderRadius: "12px",
-    padding: "10px 18px",
-    fontWeight: "700",
+    borderRadius: "999px",
+    padding: "10px 20px",
+    fontWeight: "600",
     cursor: "pointer",
     fontSize: "14px",
     transition: "all 0.15s ease",
-    boxShadow: "0 4px 12px rgba(232, 131, 74, 0.25)",
   },
 };
