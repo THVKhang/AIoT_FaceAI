@@ -1,18 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
 
 const STREAM_URL = process.env.NEXT_PUBLIC_STREAM_URL || 'http://localhost:5001';
 
+type CameraMode = 'off' | 'stream' | 'webcam';
+
 export default function AdminFaces() {
   const [faces, setFaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('off');
   const [streamCacheBuster, setStreamCacheBuster] = useState(Date.now());
   const [isSending, setIsSending] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState('');
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => { fetchFaces(); }, []);
+
+  // Cleanup webcam on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, []);
 
   const fetchFaces = async () => {
     try {
@@ -54,42 +71,182 @@ export default function AdminFaces() {
     }
   };
 
-  const sendCommand = async (value: string) => {
+  // ==================== CAMERA CONTROLS ====================
+
+  const stopWebcam = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  const startWebcam = useCallback(async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
+      });
+      streamRef.current = mediaStream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        videoRef.current.play();
+      }
+      setCameraMode('webcam');
+      setStatusMsg('Webcam đang hoạt động');
+    } catch (err) {
+      console.error('Webcam error:', err);
+      setStatusMsg('Không thể truy cập webcam. Hãy cấp quyền camera.');
+      setCameraMode('off');
+    }
+  }, []);
+
+  const handleStartCamera = async () => {
     if (isSending) return;
     setIsSending(true);
+    setStatusMsg('Đang kết nối...');
+    setCapturedImage(null);
+
     try {
-      // 1. Try calling Python service directly (instant, no MQTT delay)
-      const cmdMap: Record<string, string> = { on: '/cmd/on', off: '/cmd/off', register: '/cmd/register' };
-      const endpoint = cmdMap[value];
-      
-      let directSuccess = false;
-      if (endpoint) {
-        try {
-          const res = await fetch(`${STREAM_URL}${endpoint}`);
-          if (res.ok) directSuccess = true;
-        } catch (e) {
-          console.warn('Direct HTTP to Python service failed, falling back to MQTT...', e);
-        }
+      // 1. Try connecting to local Python MJPEG stream
+      let streamAvailable = false;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(`${STREAM_URL}/cmd/on`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (res.ok) streamAvailable = true;
+      } catch {
+        console.warn('Python stream not available, falling back to browser webcam...');
       }
-      
-      // 2. If direct fails (e.g. deployed on Vercel), send via MQTT
-      if (!directSuccess) {
+
+      if (streamAvailable) {
+        // Use MJPEG stream from Python service
+        setStreamCacheBuster(Date.now());
+        setCameraMode('stream');
+        setStatusMsg('Stream từ Python service');
+      } else {
+        // Fallback: Use browser webcam
+        await startWebcam();
+      }
+    } catch (e) {
+      console.error(e);
+      setStatusMsg('Lỗi khi bật camera');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleStopCamera = async () => {
+    if (isSending) return;
+    setIsSending(true);
+
+    try {
+      if (cameraMode === 'stream') {
+        // Try to stop the Python stream
+        try {
+          await fetch(`${STREAM_URL}/cmd/off`);
+        } catch { /* ignore */ }
+      }
+      stopWebcam();
+      setCameraMode('off');
+      setCapturedImage(null);
+      setStatusMsg('');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleRegisterFace = async () => {
+    if (isSending) return;
+    setIsSending(true);
+    setStatusMsg('Đang đăng ký khuôn mặt...');
+
+    try {
+      if (cameraMode === 'stream') {
+        // Use Python service for registration
+        try {
+          const res = await fetch(`${STREAM_URL}/cmd/register`);
+          if (res.ok) {
+            setStatusMsg('Đã gửi lệnh đăng ký qua Python service');
+            setTimeout(fetchFaces, 3000);
+            return;
+          }
+        } catch { /* fallthrough */ }
+        // Fallback to MQTT
         await fetch('/api/commands', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feed_key: 'faceai-cmd', value })
+          body: JSON.stringify({ feed_key: 'faceai-cmd', value: 'register' })
         });
+        setStatusMsg('Đã gửi lệnh đăng ký qua MQTT');
+        setTimeout(fetchFaces, 3000);
+      } else if (cameraMode === 'webcam') {
+        // Capture from webcam and send to identify API
+        const imageBlob = captureWebcamFrame();
+        if (!imageBlob) {
+          setStatusMsg('Không thể chụp ảnh từ webcam');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', imageBlob, 'webcam-capture.jpg');
+
+        const res = await fetch('/api/faces/identify-or-register', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          setStatusMsg(data.message || 'Đã gửi ảnh để nhận diện');
+          setCapturedImage(URL.createObjectURL(imageBlob));
+          setTimeout(fetchFaces, 1500);
+        } else {
+          setStatusMsg(data.error || 'Lỗi khi xử lý ảnh');
+        }
+      } else {
+        setStatusMsg('Hãy bật camera trước');
       }
-      
-      if (value === 'on' || value === 'register') {
-        setStreamCacheBuster(Date.now());
-        setCameraActive(true);
-      }
-      if (value === 'off') setCameraActive(false);
-    } catch (e) { 
-      console.error(e); 
-      alert('Lỗi hệ thống khi gửi lệnh.'); 
+    } catch (e) {
+      console.error(e);
+      setStatusMsg('Lỗi hệ thống khi đăng ký');
+    } finally {
+      setIsSending(false);
     }
-    finally { setIsSending(false); }
+  };
+
+  const captureWebcamFrame = (): Blob | null => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return null;
+
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.drawImage(video, 0, 0);
+    // Convert canvas to blob synchronously via toDataURL
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    const byteString = atob(dataUrl.split(',')[1]);
+    const arrayBuffer = new ArrayBuffer(byteString.length);
+    const uint8Array = new Uint8Array(arrayBuffer);
+    for (let i = 0; i < byteString.length; i++) {
+      uint8Array[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([uint8Array], { type: 'image/jpeg' });
+  };
+
+  const handleCaptureSnapshot = async () => {
+    if (cameraMode !== 'webcam') return;
+    const blob = captureWebcamFrame();
+    if (blob) {
+      setCapturedImage(URL.createObjectURL(blob));
+      setStatusMsg('Đã chụp ảnh từ webcam');
+    }
   };
 
   const sendDoorCommand = async (value: string) => {
@@ -100,7 +257,6 @@ export default function AdminFaces() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ feed_key: 'button-door', value })
       });
-      // Optionally alert or just let it be silent
     } catch (e) {
       console.error(e);
       alert('Lỗi gửi lệnh cửa.');
@@ -111,6 +267,13 @@ export default function AdminFaces() {
 
   const pendingFaces = faces.filter(f => f.status === 'Pending');
   const registeredFaces = faces.filter(f => f.status !== 'Pending');
+
+  const cameraActive = cameraMode !== 'off';
+  const modeLabel = cameraMode === 'stream'
+    ? 'Stream: Python Service'
+    : cameraMode === 'webcam'
+      ? 'Webcam: Browser Camera'
+      : 'Offline';
 
   return (
     <AppShell
@@ -124,24 +287,82 @@ export default function AdminFaces() {
             <div className={`faceai-live-dot ${cameraActive ? 'is-active' : ''}`} />
             <span className="faceai-monitor-tag">Live Camera Feed</span>
           </div>
-          <span className="faceai-monitor-meta">
-            {cameraActive ? `Stream: localhost:5001` : 'Offline'}
-          </span>
+          <span className="faceai-monitor-meta">{modeLabel}</span>
         </div>
 
         <div className="faceai-monitor-viewport">
-          {cameraActive ? (
+          {cameraMode === 'stream' ? (
             <img src={`${STREAM_URL}/video_feed?t=${streamCacheBuster}`} alt="Live Camera Feed" />
+          ) : cameraMode === 'webcam' ? (
+            <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '460px',
+                  borderRadius: '12px',
+                  objectFit: 'cover',
+                  transform: 'scaleX(-1)',
+                }}
+              />
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
+            </div>
           ) : (
             <div className="faceai-monitor-placeholder">
               <div className="faceai-monitor-placeholder-icon">📹</div>
               <div className="faceai-monitor-placeholder-title">Camera đang tắt</div>
               <div className="faceai-monitor-placeholder-text">
-                Nhấn "Bật Camera" bên dưới để bắt đầu stream video từ thiết bị.
+                Nhấn &quot;Bật Camera&quot; bên dưới để bắt đầu stream video.
+                <br />
+                <span style={{ fontSize: '13px', opacity: 0.7, marginTop: '8px', display: 'inline-block' }}>
+                  Tự động dùng webcam trình duyệt nếu không có Python service.
+                </span>
               </div>
             </div>
           )}
         </div>
+
+        {/* Status message bar */}
+        {statusMsg && (
+          <div style={{
+            padding: '8px 16px',
+            fontSize: '13px',
+            color: '#94a3b8',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: cameraActive ? '#22c55e' : '#64748b' }} />
+            {statusMsg}
+          </div>
+        )}
+
+        {/* Captured snapshot preview */}
+        {capturedImage && (
+          <div style={{
+            padding: '12px 16px',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}>
+            <img
+              src={capturedImage}
+              alt="Captured"
+              style={{
+                width: 80, height: 80,
+                borderRadius: '10px',
+                objectFit: 'cover',
+                border: '2px solid rgba(91,97,245,0.3)',
+              }}
+            />
+            <span style={{ fontSize: '13px', color: '#94a3b8' }}>Ảnh vừa chụp từ webcam</span>
+          </div>
+        )}
 
         <div className="faceai-actions-bar">
           <div className="faceai-actions-group">
@@ -149,7 +370,7 @@ export default function AdminFaces() {
               <button
                 className="faceai-btn faceai-btn-primary"
                 disabled={isSending}
-                onClick={() => sendCommand('on')}
+                onClick={handleStartCamera}
               >
                 ▶ Bật Camera
               </button>
@@ -157,21 +378,31 @@ export default function AdminFaces() {
               <button
                 className="faceai-btn faceai-btn-danger"
                 disabled={isSending}
-                onClick={() => sendCommand('off')}
+                onClick={handleStopCamera}
               >
                 ■ Tắt Camera
+              </button>
+            )}
+            {cameraMode === 'webcam' && (
+              <button
+                className="faceai-btn faceai-btn-ghost"
+                style={{ borderColor: 'var(--vf-primary, #5B61F5)', color: 'var(--vf-primary, #5B61F5)' }}
+                disabled={isSending}
+                onClick={handleCaptureSnapshot}
+              >
+                📸 Chụp ảnh
               </button>
             )}
             <button
               className="faceai-btn faceai-btn-success"
               disabled={isSending}
-              onClick={() => sendCommand('register')}
+              onClick={handleRegisterFace}
             >
               + Đăng ký khuôn mặt
             </button>
             <button
               className="faceai-btn faceai-btn-ghost"
-              style={{ marginLeft: 8, borderColor: '#3b82f6', color: '#3b82f6' }}
+              style={{ marginLeft: 8, borderColor: 'var(--vf-primary, #5B61F5)', color: 'var(--vf-primary, #5B61F5)' }}
               disabled={isSending}
               onClick={() => sendDoorCommand('1')}
             >
@@ -315,7 +546,7 @@ export default function AdminFaces() {
                   <td style={{ textAlign: 'right' }}>
                     <button
                       className="faceai-table-action"
-                      style={{ color: '#3b82f6', marginRight: '8px' }}
+                      style={{ color: 'var(--vf-primary, #5B61F5)', marginRight: '8px' }}
                       onClick={() => handleRename(face.id, face.status, face.name)}
                     >
                       Đổi tên
