@@ -31,6 +31,14 @@ export default function AdminFaces() {
     };
   }, []);
 
+  // Attach webcam stream to video element when both are ready
+  useEffect(() => {
+    if (cameraMode === 'webcam' && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(e => console.warn('Video play failed:', e));
+    }
+  }, [cameraMode]);
+
   const fetchFaces = async () => {
     try {
       const res = await fetch('/api/faces/all');
@@ -89,10 +97,7 @@ export default function AdminFaces() {
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
       });
       streamRef.current = mediaStream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
-      }
+      // Set mode first so <video> element renders in DOM
       setCameraMode('webcam');
       setStatusMsg('Webcam đang hoạt động');
     } catch (err) {
