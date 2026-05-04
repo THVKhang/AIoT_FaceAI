@@ -109,30 +109,38 @@ export default function AdminFaces() {
     setCapturedImage(null);
 
     try {
-      // 1. Try connecting to local Python MJPEG stream
+      // 1. Try connecting to local Python MJPEG stream (fast timeout)
       let streamAvailable = false;
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3000);
-        const res = await fetch(`${STREAM_URL}/cmd/on`, { signal: controller.signal });
+        const timeout = setTimeout(() => controller.abort(), 1500);
+        const res = await fetch(`${STREAM_URL}/cmd/on`, {
+          signal: controller.signal,
+          mode: 'no-cors', // Avoid CORS blocking on deployed site
+        });
         clearTimeout(timeout);
-        if (res.ok) streamAvailable = true;
+        // With no-cors, response is opaque but if fetch didn't throw, stream may be available
+        // Double-check by testing if STREAM_URL is localhost
+        if (STREAM_URL.includes('localhost') || STREAM_URL.includes('127.0.0.1')) {
+          streamAvailable = true;
+        }
       } catch {
-        console.warn('Python stream not available, falling back to browser webcam...');
+        console.warn('Python stream unavailable, using browser webcam...');
       }
 
       if (streamAvailable) {
-        // Use MJPEG stream from Python service
         setStreamCacheBuster(Date.now());
         setCameraMode('stream');
         setStatusMsg('Stream từ Python service');
       } else {
-        // Fallback: Use browser webcam
+        // Fallback: Browser webcam (works on deployed Vercel)
+        setStatusMsg('Đang mở webcam trình duyệt...');
         await startWebcam();
       }
     } catch (e) {
       console.error(e);
-      setStatusMsg('Lỗi khi bật camera');
+      setStatusMsg('Lỗi khi bật camera. Kiểm tra quyền truy cập camera.');
+      setCameraMode('off');
     } finally {
       setIsSending(false);
     }
