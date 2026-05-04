@@ -403,6 +403,7 @@ def process_identify(frame, face_rect):
             user = data["user"]
             print(f"🔓 NHẬN DIỆN THÀNH CÔNG: {user['name']} (Distance: {user['distance']:.2f})")
             mqtt_client.publish(FEED_DOOR, "1")
+            mqtt_client.publish("faceai-result", user['name'])
             last_unlock_time = time.time()
             overlay_result = 'valid'
             overlay_name = user['name']
@@ -571,6 +572,25 @@ try:
         else:
             stable_frames = 0
             last_face_center = None
+
+        # ---- Global Result Overlay ----
+        now = time.time()
+        if overlay_result and now < overlay_expire_time:
+            fh, fw = frame.shape[:2]
+            if overlay_result == 'valid':
+                cv2.rectangle(frame, (0, 0), (fw, 60), (0, 150, 0), -1)
+                cv2.putText(frame, f"OK {overlay_name} - DOOR OPENED", (10, 40),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+            elif overlay_result == 'stranger':
+                cv2.rectangle(frame, (0, 0), (fw, 60), (0, 0, 180), -1)
+                cv2.putText(frame, "X STRANGER - ACCESS DENIED", (10, 40),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+            elif overlay_result == 'registered':
+                cv2.rectangle(frame, (0, 0), (fw, 60), (150, 0, 150), -1)
+                cv2.putText(frame, "REGISTERED PENDING APPROVAL", (10, 40),
+                           cv2.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        elif overlay_result and now >= overlay_expire_time:
+            overlay_result = None
 
         # ---- Registration mode visual guide ----
         if is_register_mode and scan_step < len(SCAN_POSES):

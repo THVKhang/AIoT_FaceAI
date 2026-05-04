@@ -2,7 +2,7 @@
 
 /* Branded text selection */
 ::selection {
-  background: rgba(37, 99, 235, 0.18);
+  background: rgba(107, 127, 255, 0.18);
   color: inherit;
 }
 
@@ -33,8 +33,8 @@ html.theme-dark ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.35
 }
 
 @keyframes breathe {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.25); }
-  50%      { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(107, 127, 255, 0.25); }
+  50%      { box-shadow: 0 0 0 6px rgba(107, 127, 255, 0); }
 }
 
 @keyframes countUp {
@@ -66,19 +66,39 @@ body {
 }
 
 :root {
-  --bg: #edf3fa;
-  --text: #0f172a;
-  --bg-accent-a: rgba(56, 189, 248, 0.16);
-  --bg-accent-b: rgba(59, 130, 246, 0.2);
-  --bg-accent-c: rgba(16, 185, 129, 0.12);
+  --bg: #e8eeff;
+  --text: #1a1a2e;
+  --bg-accent-a: rgba(107, 127, 255, 0.16);
+  --bg-accent-b: rgba(107, 127, 255, 0.2);
+  --bg-accent-c: rgba(232, 131, 74, 0.12);
+  --parker-primary: #6b7fff;
+  --parker-primary-dark: #5468e0;
+  --parker-cta: #e8834a;
+  --parker-cta-hover: #d6733c;
+  --parker-card-bg: #ffffff;
+  --parker-card-border: rgba(107, 127, 255, 0.18);
+  --parker-card-shadow: 0 8px 32px rgba(107, 127, 255, 0.08);
+  --parker-card-radius: 24px;
+  --parker-nav-bg: rgba(255, 255, 255, 0.92);
+  --parker-section-blue: #7b9bff;
 }
 
 html.theme-dark {
-  --bg: #080d19;
+  --bg: #0c0c14;
   --text: #e2e8f0;
-  --bg-accent-a: rgba(56, 189, 248, 0.12);
-  --bg-accent-b: rgba(96, 165, 250, 0.2);
-  --bg-accent-c: rgba(45, 212, 191, 0.08);
+  --bg-accent-a: rgba(107, 127, 255, 0.12);
+  --bg-accent-b: rgba(107, 127, 255, 0.2);
+  --bg-accent-c: rgba(232, 131, 74, 0.08);
+  --parker-primary: #8b9fff;
+  --parker-primary-dark: #6b7fff;
+  --parker-cta: #e8834a;
+  --parker-cta-hover: #f0935a;
+  --parker-card-bg: rgba(18, 18, 30, 0.92);
+  --parker-card-border: rgba(107, 127, 255, 0.12);
+  --parker-card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --parker-card-radius: 24px;
+  --parker-nav-bg: rgba(18, 18, 30, 0.88);
+  --parker-section-blue: #5468e0;
 }
 
 .app-shell {
@@ -86,9 +106,9 @@ html.theme-dark {
   isolation: isolate;
   min-height: 100vh;
   background:
-    radial-gradient(1100px 520px at -8% -6%, rgba(226, 232, 240, 0.32), transparent 58%),
-    radial-gradient(920px 420px at 112% -8%, rgba(203, 213, 225, 0.28), transparent 54%),
-    linear-gradient(180deg, #ffffff 0%, #f8fafc 62%, #f1f5f9 100%);
+    radial-gradient(1200px 600px at -5% -10%, rgba(123, 155, 255, 0.2), transparent 55%),
+    radial-gradient(1000px 500px at 110% -5%, rgba(167, 139, 250, 0.15), transparent 50%),
+    linear-gradient(180deg, #e0e8ff 0%, #e8eeff 40%, #f0f3ff 100%);
   background-size: auto, auto, auto;
   background-position: center, center, center;
   background-repeat: no-repeat;
@@ -137,9 +157,9 @@ html.theme-dark {
 
 html.theme-dark .app-shell {
   background:
-    radial-gradient(1000px 520px at -8% -4%, rgba(37, 99, 235, 0.15), transparent 54%),
-    radial-gradient(900px 500px at 110% 2%, rgba(20, 184, 166, 0.1), transparent 52%),
-    linear-gradient(180deg, #0a111f 0%, #080d19 62%, #09101f 100%);
+    radial-gradient(1000px 520px at -8% -4%, rgba(107, 127, 255, 0.1), transparent 54%),
+    radial-gradient(900px 500px at 110% 2%, rgba(139, 92, 246, 0.08), transparent 52%),
+    linear-gradient(180deg, #0e0e1a 0%, #0c0c14 62%, #0a0a12 100%);
 }
 
 html.theme-dark .app-shell-bg {
@@ -163,9 +183,9 @@ html.theme-dark .app-shell-bg {
   display: grid;
   place-items: center;
   padding: 24px;
-  background-color: #dbe7f6;
+  background-color: #e0e8ff;
   background-image:
-    linear-gradient(165deg, rgba(233, 242, 252, 0.08) 0%, rgba(225, 236, 248, 0.1) 55%, rgba(220, 232, 246, 0.08) 100%),
+    linear-gradient(165deg, rgba(224, 232, 255, 0.08) 0%, rgba(200, 212, 255, 0.1) 55%, rgba(192, 208, 255, 0.08) 100%),
     url("/images/school-bg.jpg");
   background-size: cover, cover;
   background-position: center, center;
@@ -418,18 +438,18 @@ html.theme-dark .app-shell-bg {
   height: 50px;
   border: none;
   border-radius: 14px;
-  background: linear-gradient(135deg, #1a227f, #2a349c);
+  background: linear-gradient(135deg, var(--parker-cta), var(--parker-cta-hover));
   color: #ffffff;
   font-size: 15px;
   font-weight: 900;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 14px 24px rgba(26, 34, 127, 0.28);
+  box-shadow: 0 14px 24px rgba(232, 131, 74, 0.28);
   transition: transform 0.12s ease, box-shadow 0.2s ease;
 }
 
 .login-v2-submit:hover {
-  box-shadow: 0 16px 28px rgba(26, 34, 127, 0.32);
+  box-shadow: 0 16px 28px rgba(232, 131, 74, 0.35);
 }
 
 .login-v2-submit:active {
@@ -486,7 +506,7 @@ html.theme-dark .app-shell-bg {
 /* Left panel — gradient brand side */
 .auth-split-left {
   background:
-    linear-gradient(135deg, #0b1530 0%, #122250 40%, #1a3270 70%, #1e3a8a 100%);
+    linear-gradient(135deg, #1a1a2e 0%, #2d2b55 40%, #3d3a6d 70%, #4a46a0 100%);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -503,7 +523,7 @@ html.theme-dark .app-shell-bg {
   right: -120px;
   top: -100px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.2), transparent 65%);
+  background: radial-gradient(circle, rgba(107, 127, 255, 0.2), transparent 65%);
   pointer-events: none;
 }
 
@@ -515,7 +535,7 @@ html.theme-dark .app-shell-bg {
   left: -80px;
   bottom: -60px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.15), transparent 65%);
+  background: radial-gradient(circle, rgba(232, 131, 74, 0.15), transparent 65%);
   pointer-events: none;
 }
 
@@ -735,9 +755,10 @@ html.theme-dark .login-v2-label {
   margin-top: 36px;
   padding: 28px 30px;
   border-radius: 28px;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
+  background: #111118;
+  border: 1px solid rgba(107, 127, 255, 0.08);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.15);
+  color: #94a3b8;
 }
 
 .site-footer-top {
@@ -745,7 +766,7 @@ html.theme-dark .login-v2-label {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
   padding-bottom: 22px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .site-footer-column {
@@ -759,7 +780,7 @@ html.theme-dark .login-v2-label {
   gap: 18px;
   align-items: center;
   padding: 22px 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .site-footer-brand {
@@ -774,17 +795,17 @@ html.theme-dark .login-v2-label {
   border-radius: 18px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #2563eb, #0f766e);
+  background: linear-gradient(135deg, var(--parker-primary), var(--parker-primary-dark));
   color: #fff;
   font-weight: 900;
   font-size: 18px;
-  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 10px 22px rgba(107, 127, 255, 0.25);
 }
 
 .site-footer-brand-title {
   font-size: 20px;
   font-weight: 900;
-  color: #0f172a;
+  color: #e2e8f0;
 }
 
 .site-footer-brand-subtitle {
@@ -813,16 +834,16 @@ html.theme-dark .login-v2-label {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid #d1d5db;
-  color: #4b5563;
-  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
   transition: 0.2s ease;
 }
 
 .site-footer-icon:hover {
   transform: translateY(-1px);
-  background: #f8fafc;
-  color: #111827;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
 }
 
 .site-footer-bottom {
@@ -835,7 +856,7 @@ html.theme-dark .login-v2-label {
 .site-footer-contact-title {
   font-size: 14px;
   font-weight: 800;
-  color: #0f172a;
+  color: #e2e8f0;
   margin-bottom: 8px;
 }
 
@@ -851,17 +872,17 @@ html.theme-dark .login-v2-label {
 }
 
 .site-footer-link:hover {
-  color: #2563eb;
+  color: var(--parker-primary);
 }
 
 .muted-link {
-  color: #374151;
+  color: #94a3b8;
   font-size: 15px;
   font-weight: 500;
 }
 
 .strong-link {
-  color: #1f2937;
+  color: #cbd5e1;
   font-size: 15px;
   font-weight: 700;
 }
@@ -910,15 +931,15 @@ html.theme-dark .login-v2-label {
   justify-content: space-between;
   gap: 18px;
   flex-wrap: wrap;
-  padding: 16px 18px;
+  padding: 14px 24px;
   margin-bottom: 22px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 24px;
-  background: rgba(255,255,255,0.84);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--parker-card-border);
+  border-radius: 20px;
+  background: var(--parker-nav-bg);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 4px 20px rgba(107, 127, 255, 0.06);
   position: sticky;
-  top: 0;
+  top: 12px;
   z-index: 100;
   transition:
     box-shadow 0.18s cubic-bezier(0.4,0,0.2,1),
@@ -928,9 +949,10 @@ html.theme-dark .login-v2-label {
 }
 
 .topnav-scrolled {
-  background: rgba(255,255,255,0.98);
-  box-shadow: 0 4px 24px rgba(30, 41, 59, 0.13), 0 1.5px 0 rgba(203,213,225,0.13);
+  background: var(--parker-nav-bg);
+  box-shadow: 0 4px 24px rgba(107, 127, 255, 0.1);
   border-radius: 0 0 18px 18px;
+  top: 0;
 }
 
 html.theme-dark .topnav,
@@ -942,9 +964,9 @@ html.theme-dark .realtime-summary-card,
 html.theme-dark .alert-panel-card,
 html.theme-dark .snapshot-item,
 html.theme-dark .site-footer {
-  background: rgba(15, 23, 42, 0.86);
-  border-color: #334155;
-  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.45);
+  background: var(--parker-card-bg);
+  border-color: var(--parker-card-border);
+  box-shadow: var(--parker-card-shadow);
 }
 
 html.theme-dark .topnav-brand {
@@ -954,21 +976,23 @@ html.theme-dark .topnav-brand {
 }
 
 .brand-mark {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
   display: grid;
   place-items: center;
   font-weight: 800;
+  font-size: 13px;
   color: #fff;
-  background: linear-gradient(135deg, #2563eb, #0f766e);
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+  background: linear-gradient(135deg, var(--parker-primary), var(--parker-primary-dark));
+  box-shadow: 0 6px 16px rgba(107, 127, 255, 0.3);
 }
 
 .brand-title {
-  font-size: 18px;
-  font-weight: 800;
-  color: #0f172a;
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+  letter-spacing: -0.02em;
 }
 
 .brand-subtitle {
@@ -984,23 +1008,24 @@ html.theme-dark .topnav-brand {
 }
 
 .topnav-link {
-  padding: 10px 14px;
-  border-radius: 999px;
-  color: #334155;
-  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 12px;
+  color: #4a5068;
+  font-weight: 600;
+  font-size: 15px;
   transition: 0.2s ease;
   background: transparent;
 }
 
 .topnav-link:hover {
-  background: #eaf2ff;
-  color: #1d4ed8;
+  background: rgba(107, 127, 255, 0.08);
+  color: var(--parker-primary-dark);
 }
 
 .topnav-link.active {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  color: white;
-  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.18);
+  background: rgba(107, 127, 255, 0.12);
+  color: var(--parker-primary-dark);
+  font-weight: 700;
 }
 
 .topnav-right {
@@ -1079,9 +1104,9 @@ html.theme-dark .realtime-summary-card,
 html.theme-dark .alert-panel-card,
 html.theme-dark .snapshot-item,
 html.theme-dark .site-footer {
-  background: rgba(15, 23, 42, 0.86);
-  border-color: #334155;
-  box-shadow: 0 14px 28px rgba(2, 6, 23, 0.45);
+  background: var(--parker-card-bg);
+  border-color: var(--parker-card-border);
+  box-shadow: var(--parker-card-shadow);
 }
 
 html.theme-dark .page-hero-title,
@@ -1157,13 +1182,13 @@ html.theme-dark .site-footer-link:hover {
 html.theme-dark .site-footer-top,
 html.theme-dark .site-footer-middle,
 html.theme-dark .site-footer-bottom {
-  border-color: #334155;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 html.theme-dark .dashboard-simple-hero-left {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 56%, #2563eb 100%);
-  border-color: #3b82f6;
-  box-shadow: 0 14px 30px rgba(30, 64, 175, 0.35);
+  background: linear-gradient(135deg, #3d3a6d 0%, var(--parker-primary-dark) 56%, var(--parker-primary) 100%);
+  border-color: rgba(107, 127, 255, 0.3);
+  box-shadow: 0 14px 30px rgba(107, 127, 255, 0.2);
 }
 
 html.theme-dark .realtime-status-pill.tone-neutral {
@@ -1234,17 +1259,17 @@ html.theme-dark .user-info {
 
 .page-hero-title {
   margin: 0;
-  font-size: 36px;
+  font-size: 40px;
   line-height: 1.05;
   font-weight: 900;
   letter-spacing: -0.03em;
-  color: #0f172a;
+  color: var(--text);
 }
 
 .page-hero-subtitle {
   margin: 10px 0 0;
   max-width: 720px;
-  color: #64748b;
+  color: #6b7280;
   font-size: 15px;
   line-height: 1.6;
 }
@@ -1266,7 +1291,7 @@ html.theme-dark .user-info {
   width: 90px;
   height: 90px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(37,99,235,0.12), transparent 65%);
+  background: radial-gradient(circle, rgba(107,127,255,0.1), transparent 65%);
 }
 
 .metric-top {
@@ -1329,11 +1354,11 @@ html.theme-dark .user-info {
 
 /*--------------------- ALERT PANEL ---------------------*/
 .alert-panel-card {
-  border-radius: 24px;
+  border-radius: var(--parker-card-radius);
   padding: 22px;
-  border: 1px solid #e2e8f0;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--parker-card-border);
+  background: var(--parker-card-bg);
+  box-shadow: var(--parker-card-shadow);
 }
 
 .alert-panel-card.tone-normal {
@@ -1479,18 +1504,18 @@ html.theme-dark .user-info {
 
 .dashboard-simple-hero-left,
 .dashboard-simple-hero-right {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
+  background: var(--parker-card-bg);
+  border: 1px solid var(--parker-card-border);
+  border-radius: var(--parker-card-radius);
   padding: 24px;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--parker-card-shadow);
 }
 
 .dashboard-simple-hero-left {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 56%, #2563eb 100%);
-  border-color: #3b82f6;
+  background: linear-gradient(135deg, var(--parker-primary) 0%, var(--parker-section-blue) 100%);
+  border-color: rgba(107, 127, 255, 0.3);
   color: #f8fbff;
 }
 
@@ -1502,11 +1527,11 @@ html.theme-dark .user-info {
   width: 220px;
   height: 220px;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 68%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.15), transparent 68%);
 }
 
 .dashboard-simple-hero-left .dashboard-simple-label {
-  color: #bfdbfe;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .dashboard-simple-hero-left .dashboard-simple-title {
@@ -1564,11 +1589,11 @@ html.theme-dark .user-info {
   display: grid;
   gap: 16px;
   align-items: stretch;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid #e2e8f0;
+  background: var(--parker-card-bg);
+  border: 1px solid var(--parker-card-border);
   border-radius: 22px;
   padding: 20px 22px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--parker-card-shadow);
 }
 
 .live-metric-card-head {
@@ -1586,8 +1611,8 @@ html.theme-dark .user-info {
   align-items: center;
   justify-content: center;
   padding: 0 12px;
-  background: #eaf2ff;
-  color: #1d4ed8;
+  background: rgba(107, 127, 255, 0.1);
+  color: var(--parker-primary-dark);
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.01em;
@@ -1689,11 +1714,11 @@ html.theme-dark .user-info {
 .realtime-summary-card,
 .realtime-side-card {
   height: 100%;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
+  background: var(--parker-card-bg);
+  border: 1px solid var(--parker-card-border);
+  border-radius: var(--parker-card-radius);
   padding: 20px;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--parker-card-shadow);
 }
 
 .realtime-summary-title,
@@ -1826,9 +1851,9 @@ html.theme-dark .user-info {
 .snapshot-item {
   border-radius: 22px;
   padding: 18px;
-  border: 1px solid #e2e8f0;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--parker-card-border);
+  background: var(--parker-card-bg);
+  box-shadow: var(--parker-card-shadow);
 }
 
 .snapshot-item.tone-success {
@@ -2003,9 +2028,9 @@ html.theme-dark .user-info {
 
 .devices-v2-card {
   border-radius: 18px;
-  border: 1px solid #e2e8f0;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--parker-card-border);
+  background: var(--parker-card-bg);
+  box-shadow: var(--parker-card-shadow);
   padding: 20px;
   min-height: 305px;
   display: flex;
@@ -2032,8 +2057,8 @@ html.theme-dark .user-info {
 }
 
 .devices-v2-icon.tone-primary {
-  background: #e7f0ff;
-  color: #184b9f;
+  background: rgba(107, 127, 255, 0.1);
+  color: var(--parker-primary-dark);
 }
 
 .devices-v2-icon.tone-warm {
@@ -4159,13 +4184,13 @@ html.theme-dark .settings-clean-head-row span {
 }
 
 .faceai-btn-primary {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, var(--parker-primary), var(--parker-primary-dark));
   color: #ffffff;
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 6px 18px rgba(107, 127, 255, 0.3);
 }
 
 .faceai-btn-primary:hover:not(:disabled) {
-  box-shadow: 0 8px 22px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 8px 22px rgba(107, 127, 255, 0.4);
   transform: translateY(-1px);
 }
 
@@ -4180,13 +4205,13 @@ html.theme-dark .settings-clean-head-row span {
 }
 
 .faceai-btn-success {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, var(--parker-cta), var(--parker-cta-hover));
   color: #ffffff;
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 6px 18px rgba(232, 131, 74, 0.3);
 }
 
 .faceai-btn-success:hover:not(:disabled) {
-  box-shadow: 0 8px 22px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 8px 22px rgba(232, 131, 74, 0.4);
   transform: translateY(-1px);
 }
 
@@ -4219,7 +4244,7 @@ html.theme-dark .settings-clean-head-row span {
   margin: 0;
   font-size: 22px;
   font-weight: 900;
-  color: #0f172a;
+  color: var(--text);
   letter-spacing: -0.02em;
 }
 
@@ -4253,11 +4278,11 @@ html.theme-dark .settings-clean-head-row span {
 }
 
 .faceai-pending-card {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid #e2e8f0;
+  background: var(--parker-card-bg);
+  border: 1px solid var(--parker-card-border);
   border-radius: 22px;
   padding: 22px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--parker-card-shadow);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -4265,7 +4290,7 @@ html.theme-dark .settings-clean-head-row span {
 }
 
 .faceai-pending-card:hover {
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 14px 32px rgba(107, 127, 255, 0.12);
   transform: translateY(-2px);
 }
 
@@ -4329,8 +4354,8 @@ html.theme-dark .settings-clean-head-row span {
 
 .faceai-pending-input:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: var(--parker-primary);
+  box-shadow: 0 0 0 3px rgba(107, 127, 255, 0.12);
 }
 
 .faceai-pending-actions {
@@ -4359,23 +4384,23 @@ html.theme-dark .settings-clean-head-row span {
 }
 
 .faceai-approve-btn {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: linear-gradient(135deg, var(--parker-cta), var(--parker-cta-hover));
   color: #ffffff;
   border: none;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.22);
+  box-shadow: 0 4px 14px rgba(232, 131, 74, 0.22);
 }
 
 .faceai-approve-btn:hover {
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 6px 18px rgba(232, 131, 74, 0.3);
   transform: translateY(-1px);
 }
 
 /* Users Table — Jakob's Law: standard table pattern */
 .faceai-table-wrap {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid #e2e8f0;
+  background: var(--parker-card-bg);
+  border: 1px solid var(--parker-card-border);
   border-radius: 22px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--parker-card-shadow);
   overflow: hidden;
 }
 
@@ -4587,9 +4612,7 @@ html.theme-dark .faceai-user-avatar {
 
 /* Active link glow */
 .topnav-link.active {
-  box-shadow:
-    0 10px 18px rgba(37, 99, 235, 0.18),
-    0 0 20px rgba(37, 99, 235, 0.08);
+  box-shadow: none;
 }
 
 /* Online badge pulse */
@@ -4618,7 +4641,7 @@ html.theme-dark .faceai-user-avatar {
 
 /* Input focus glow */
 .login-v2-input:focus {
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 4px rgba(107, 127, 255, 0.12);
   transition: box-shadow 0.2s ease;
 }
 
@@ -5203,7 +5226,7 @@ html.theme-dark .settings-v2-card,
 html.theme-dark .logs-v2-table-card,
 html.theme-dark .logs-v2-timeline-panel {
   background: rgba(255, 255, 255, 0.03) !important;
-  border-color: rgba(148, 163, 184, 0.08) !important;
+  border-color: rgba(107, 127, 255, 0.08) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25) !important;
@@ -5215,6 +5238,6 @@ html.theme-dark .logs-v2-stat-card:hover,
 html.theme-dark .snapshot-item:hover,
 html.theme-dark .metric-row-card:hover {
   background: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(148, 163, 184, 0.15) !important;
+  border-color: rgba(107, 127, 255, 0.15) !important;
 }
 
