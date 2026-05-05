@@ -10,6 +10,7 @@
     "db:sql": "node scripts/run-sql-files.js"
   },
   "dependencies": {
+    "@vladmandic/face-api": "^1.7.15",
     "chart.js": "^4.5.1",
     "next": "^15.0.0",
     "nodemailer": "^8.0.3",

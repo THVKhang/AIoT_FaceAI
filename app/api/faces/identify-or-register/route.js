@@ -12,6 +12,7 @@ export async function POST(req) {
   try {
     const formData = await req.formData();
     const file = formData.get('file');
+    const faceVectorStr = formData.get('face_vector') || '[]';
 
     if (!file) {
       return NextResponse.json({ success: false, error: 'No image file provided' }, { status: 400 });
@@ -24,11 +25,11 @@ export async function POST(req) {
     const base64Image = buffer.toString('base64');
     const imageUrl = `data:${file.type || 'image/jpeg'};base64,${base64Image}`;
 
-    // Save as a Pending face with empty vector (webcam capture, no embedding)
+    // Save as a Pending face with vector from browser
     const result = await pool.query(
       `INSERT INTO face_users (name, face_vector, image_url, status) 
        VALUES ($1, $2, $3, 'Pending') RETURNING id`,
-      ['Unknown', '[]', imageUrl]
+      ['Unknown', faceVectorStr, imageUrl]
     );
 
     const newId = result.rows[0].id;

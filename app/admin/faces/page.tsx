@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
 import { toast } from 'sonner';
 
+let faceapi: any;
+
 const STREAM_URL = process.env.NEXT_PUBLIC_STREAM_URL || 'http://localhost:5001';
 
 type CameraMode = 'off' | 'stream' | 'webcam';
@@ -16,12 +18,37 @@ export default function AdminFaces() {
   const [isSending, setIsSending] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState('');
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+  const [recognizing, setRecognizing] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null); // For snapshot
+  const overlayRef = useRef<HTMLCanvasElement>(null); // For bounding boxes
   const streamRef = useRef<MediaStream | null>(null);
+  const detectionInterval = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => { fetchFaces(); }, []);
+  useEffect(() => { 
+    fetchFaces();
+    import('@vladmandic/face-api').then((api) => {
+      faceapi = api;
+      loadFaceModels();
+    }).catch(e => console.error("Lỗi import face-api:", e));
+  }, []);
+
+  const loadFaceModels = async () => {
+    if (!faceapi) return;
+    try {
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+        faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+        faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
+      ]);
+      setModelsLoaded(true);
+      console.log('Face-API models loaded successfully');
+    } catch (e) {
+      console.error('Lỗi tải model Face-API:', e);
+    }
+  };
 
   // Cleanup webcam on unmount
   useEffect(() => {
@@ -98,6 +125,10 @@ export default function AdminFaces() {
   // ==================== CAMERA CONTROLS ====================
 
   const stopWebcam = useCallback(() => {
+    if (detectionInterval.current) {
+      clearInterval(detectionInterval.current);
+      detectionInterval.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
       streamRef.current = null;
@@ -105,7 +136,70 @@ export default function AdminFaces() {
     if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
+    if (overlayRef.current) {
+      const ctx = overlayRef.current.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+    }
   }, []);
+
+  const handleVideoPlay = () => {
+    if (cameraMode !== 'webcam' || !modelsLoaded || !videoRef.current || !overlayRef.current) return;
+    
+    // Create FaceMatcher from registered Valid faces
+    const validFaces = faces.filter(f => f.status === 'Valid' && f.face_vector);
+    const labeledDescriptors = validFaces.map(f => {
+      try {
+        const arr = typeof f.face_vector === 'string' ? JSON.parse(f.face_vector) : f.face_vector;
+        if (arr.length > 0) {
+          return new faceapi.LabeledFaceDescriptors(f.name, [new Float32Array(arr)]);
+        }
+      } catch (e) { console.warn('Invalid vector for', f.name); }
+      return null;
+    }).filter(Boolean) as any[];
+
+    const faceMatcher = labeledDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledDescriptors, 0.5) : null;
+
+    faceapi.matchDimensions(overlayRef.current, videoRef.current);
+
+    detectionInterval.current = setInterval(async () => {
+      if (!videoRef.current || !overlayRef.current) return;
+
+      const detections = await faceapi.detectAllFaces(
+        videoRef.current,
+        new faceapi.TinyFaceDetectorOptions()
+      ).withFaceLandmarks().withFaceDescriptors();
+
+      const ctx = overlayRef.current.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+
+      const resizedDetections = faceapi.resizeResults(detections, videoRef.current);
+      
+      if (faceMatcher) {
+        const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
+        results.forEach((result, i) => {
+          const box = resizedDetections[i].detection.box;
+          const drawBox = new faceapi.draw.DrawBox(box, { 
+            label: result.toString(),
+            boxColor: result.label === 'unknown' ? 'red' : '#22c55e'
+          });
+          drawBox.draw(overlayRef.current!);
+          
+          if (result.label !== 'unknown') {
+            // Auto-trigger door if recognized
+            sendDoorCommand('1');
+            setStatusMsg(`Đã nhận diện: ${result.label} - Mở Cửa`);
+          }
+        });
+      } else {
+        // Just draw boxes if no one is registered yet
+        faceapi.draw.drawDetections(overlayRef.current, resizedDetections);
+      }
+
+      if (detections.length > 0 && !faceMatcher) {
+        setStatusMsg(`Phát hiện ${detections.length} khuôn mặt... (Chưa có dữ liệu nhận diện)`);
+      }
+    }, 400); // 2.5 FPS for performance
+  };
 
   const startWebcam = useCallback(async () => {
     try {
@@ -113,9 +207,8 @@ export default function AdminFaces() {
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
       });
       streamRef.current = mediaStream;
-      // Set mode first so <video> element renders in DOM
       setCameraMode('webcam');
-      setStatusMsg('Webcam đang hoạt động');
+      setStatusMsg('Webcam đang hoạt động. Vui lòng chờ tải AI Model...');
     } catch (err) {
       console.error('Webcam error:', err);
       setStatusMsg('Không thể truy cập webcam. Hãy cấp quyền camera.');
@@ -214,6 +307,22 @@ export default function AdminFaces() {
         setTimeout(fetchFaces, 3000);
       } else if (cameraMode === 'webcam') {
         // Capture from webcam and send to identify API
+        if (!videoRef.current) {
+          setStatusMsg('Camera chưa sẵn sàng');
+          return;
+        }
+
+        const detection = await faceapi.detectSingleFace(
+          videoRef.current,
+          new faceapi.TinyFaceDetectorOptions()
+        ).withFaceLandmarks().withFaceDescriptor();
+
+        if (!detection) {
+          setStatusMsg('Không tìm thấy khuôn mặt nào để đăng ký! Hãy nhìn thẳng vào camera.');
+          setIsSending(false);
+          return;
+        }
+
         const imageBlob = captureWebcamFrame();
         if (!imageBlob) {
           setStatusMsg('Không thể chụp ảnh từ webcam');
@@ -222,6 +331,8 @@ export default function AdminFaces() {
 
         const formData = new FormData();
         formData.append('file', imageBlob, 'webcam-capture.jpg');
+        // Convert Float32Array descriptor to JSON string array
+        formData.append('face_vector', JSON.stringify(Array.from(detection.descriptor)));
 
         const res = await fetch('/api/faces/identify-or-register', {
           method: 'POST',
@@ -323,18 +434,23 @@ export default function AdminFaces() {
           {cameraMode === 'stream' ? (
             <img src={`${STREAM_URL}/video_feed?t=${streamCacheBuster}`} alt="Live Camera Feed" />
           ) : cameraMode === 'webcam' ? (
-            <>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
+                onPlay={handleVideoPlay}
                 width={640}
                 height={480}
-                style={{ transform: 'scaleX(-1)' }}
+                style={{ transform: 'scaleX(-1)', display: 'block' }}
+              />
+              <canvas 
+                ref={overlayRef} 
+                style={{ position: 'absolute', top: 0, left: 0, transform: 'scaleX(-1)' }} 
               />
               <canvas ref={canvasRef} style={{ display: 'none' }} />
-            </>
+            </div>
           ) : (
             <div className="faceai-monitor-placeholder">
               <div className="faceai-monitor-placeholder-icon">📹</div>
