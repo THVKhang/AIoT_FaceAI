@@ -8,6 +8,10 @@ const FEED_DEFINITIONS = {
     type: "range",
     event: "Light Level Updated",
   },
+  "fan": {
+    type: "range",
+    event: "Fan Speed Updated",
+  },
   "faceai-cmd": {
     type: "string",
     onEvent: "Face AI Command Sent",
@@ -34,8 +38,8 @@ export function normalizeCommandValue(feedKey, value) {
 
   if (feedKey === "button-light") {
     const num = Number(value);
-    if (Number.isNaN(num) || num < 0 || num > 100 || num % 10 !== 0) {
-      throw new Error("Light phải nằm trong khoảng 0-100 và bước nhảy 10");
+    if (Number.isNaN(num) || num < 0 || num > 100) {
+      throw new Error("Light phải nằm trong khoảng 0-100");
     }
     return String(num);
   }
