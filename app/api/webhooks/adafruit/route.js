@@ -17,6 +17,19 @@ export const runtime = "nodejs";
 export async function POST(request) {
   try {
     const { searchParams } = new URL(request.url);
+
+    // Security: Verify webhook secret token
+    const WEBHOOK_SECRET = process.env.ADAFRUIT_WEBHOOK_SECRET;
+    if (WEBHOOK_SECRET) {
+      const providedSecret = searchParams.get("secret") || request.headers.get("x-webhook-secret");
+      if (providedSecret !== WEBHOOK_SECRET) {
+        return Response.json(
+          { success: false, error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+    }
+
     const body = await request.json().catch(() => ({}));
 
     // Extract feed key from multiple possible Adafruit IO payload formats

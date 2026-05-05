@@ -26,6 +26,7 @@ export default function AdminFaces() {
   const overlayRef = useRef<HTMLCanvasElement>(null); // For bounding boxes
   const streamRef = useRef<MediaStream | null>(null);
   const detectionInterval = useRef<NodeJS.Timeout | null>(null);
+  const lastDoorCommandRef = useRef<number | null>(null);
 
   useEffect(() => { 
     fetchFaces();
@@ -185,9 +186,14 @@ export default function AdminFaces() {
           drawBox.draw(overlayRef.current!);
           
           if (result.label !== 'unknown') {
-            // Auto-trigger door if recognized
-            sendDoorCommand('1');
-            setStatusMsg(`Đã nhận diện: ${result.label} - Mở Cửa`);
+            // Cooldown: only send door command once every 10 seconds
+            const now = Date.now();
+            if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
+              lastDoorCommandRef.current = now;
+              sendDoorCommand('1');
+              toast.success(`Đã nhận diện: ${result.label} — Mở Cửa!`);
+            }
+            setStatusMsg(`Đã nhận diện: ${result.label}`);
           }
         });
       } else {
