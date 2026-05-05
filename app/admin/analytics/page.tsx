@@ -32,9 +32,10 @@ ChartJS.register(
 
 export default function AnalyticsPage() {
   const [range, setRange] = useState('7d');
-  const [sensorData, setSensorData] = useState(null);
-  const [accessData, setAccessData] = useState(null);
+  const [sensorData, setSensorData] = useState<any>(null);
+  const [accessData, setAccessData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -42,6 +43,7 @@ export default function AnalyticsPage() {
 
   const fetchData = async () => {
     setLoading(true);
+    setError('');
     try {
       const [resSensors, resAccess] = await Promise.all([
         fetch(`/api/analytics/sensors?range=${range}`),
@@ -51,169 +53,302 @@ export default function AnalyticsPage() {
       const dataAccess = await resAccess.json();
       
       if (dataSensors.success) setSensorData(dataSensors.data);
+      else setError(dataSensors.message || 'Lỗi tải dữ liệu sensor');
+      
       if (dataAccess.success) setAccessData(dataAccess.data);
     } catch (e) {
       console.error(e);
+      setError('Không thể kết nối API');
     } finally {
       setLoading(false);
     }
   };
 
+  // ====== Chart Configs ======
+
   const lineChartData = {
     labels: sensorData?.labels || [],
     datasets: [
       {
-        label: 'Temperature (°C)',
-        data: sensorData?.datasets['sensor-temp'] || [],
+        label: 'Nhiệt độ (°C)',
+        data: sensorData?.datasets?.['sensor-temp'] || [],
         borderColor: '#f97316',
-        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+        backgroundColor: 'rgba(249, 115, 22, 0.08)',
         tension: 0.4,
         fill: true,
-        pointRadius: 0,
+        pointRadius: 2,
+        pointBackgroundColor: '#f97316',
+        borderWidth: 2,
       },
       {
-        label: 'Humidity (%)',
-        data: sensorData?.datasets['sensor-humid'] || [],
+        label: 'Độ ẩm (%)',
+        data: sensorData?.datasets?.['sensor-humid'] || [],
         borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        backgroundColor: 'rgba(59, 130, 246, 0.08)',
         tension: 0.4,
         fill: true,
-        pointRadius: 0,
+        pointRadius: 2,
+        pointBackgroundColor: '#3b82f6',
+        borderWidth: 2,
+      },
+    ]
+  };
+
+  const lightChartData = {
+    labels: sensorData?.labels || [],
+    datasets: [
+      {
+        label: 'Ánh sáng (lux)',
+        data: sensorData?.datasets?.['sensor-light'] || [],
+        borderColor: '#eab308',
+        backgroundColor: 'rgba(234, 179, 8, 0.08)',
+        tension: 0.4,
+        fill: true,
+        pointRadius: 2,
+        pointBackgroundColor: '#eab308',
+        borderWidth: 2,
       }
     ]
   };
 
+  const validCount = accessData?.faceStats?.Valid || 0;
+  const deniedCount = accessData?.faceStats?.Stranger || 0;
+  const totalAccess = validCount + deniedCount;
+
   const doughnutData = {
-    labels: ['Valid Access', 'Stranger / Denied'],
-    datasets: [
-      {
-        data: [
-          accessData?.faceStats?.Valid || 0,
-          accessData?.faceStats?.Stranger || 0
-        ],
-        backgroundColor: ['#22c55e', '#ef4444'],
-        borderWidth: 0,
-      }
-    ]
+    labels: ['Hợp lệ', 'Từ chối'],
+    datasets: [{
+      data: [validCount, deniedCount],
+      backgroundColor: ['#22c55e', '#ef4444'],
+      borderColor: ['rgba(34,197,94,0.3)', 'rgba(239,68,68,0.3)'],
+      borderWidth: 2,
+      hoverOffset: 8,
+    }]
   };
 
   const barData = {
     labels: accessData?.commandStats?.labels || [],
     datasets: [
       {
-        label: 'Fan Commands',
-        data: accessData?.commandStats?.datasets['button-fan'] || [],
-        backgroundColor: '#06b6d4',
-        borderRadius: 4,
+        label: 'Door',
+        data: accessData?.commandStats?.datasets?.['button-door'] || [],
+        backgroundColor: 'rgba(245, 158, 11, 0.7)',
+        borderColor: '#f59e0b',
+        borderWidth: 1,
+        borderRadius: 6,
       },
       {
-        label: 'Door Commands',
-        data: accessData?.commandStats?.datasets['button-door'] || [],
-        backgroundColor: '#f59e0b',
-        borderRadius: 4,
-      }
+        label: 'Light',
+        data: accessData?.commandStats?.datasets?.['button-light'] || [],
+        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+        borderColor: '#3b82f6',
+        borderWidth: 1,
+        borderRadius: 6,
+      },
+      {
+        label: 'Fan',
+        data: accessData?.commandStats?.datasets?.['fan'] || [],
+        backgroundColor: 'rgba(6, 182, 212, 0.7)',
+        borderColor: '#06b6d4',
+        borderWidth: 1,
+        borderRadius: 6,
+      },
     ]
   };
 
-  const chartOptions = {
+  const darkGridColor = 'rgba(148, 163, 184, 0.08)';
+  const tickColor = '#64748b';
+
+  const lineOptions: any = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: {
-        labels: { color: '#94a3b8' }
+        labels: { color: '#94a3b8', usePointStyle: true, pointStyle: 'circle', padding: 20, font: { size: 12 } }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(15,23,42,0.95)',
+        titleColor: '#e2e8f0',
+        bodyColor: '#cbd5e1',
+        borderColor: 'rgba(99,102,241,0.3)',
+        borderWidth: 1,
+        padding: 12,
+        cornerRadius: 8,
       }
     },
     scales: {
-      x: {
-        grid: { color: 'rgba(148, 163, 184, 0.1)' },
-        ticks: { color: '#94a3b8', maxTicksLimit: 10 }
+      x: { grid: { color: darkGridColor }, ticks: { color: tickColor, maxTicksLimit: 12, font: { size: 11 } } },
+      y: { grid: { color: darkGridColor }, ticks: { color: tickColor, font: { size: 11 } } }
+    }
+  };
+
+  const pieOptions: any = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '72%',
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: { color: '#94a3b8', usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 12 } }
       },
-      y: {
-        grid: { color: 'rgba(148, 163, 184, 0.1)' },
-        ticks: { color: '#94a3b8' }
+      tooltip: {
+        backgroundColor: 'rgba(15,23,42,0.95)',
+        titleColor: '#e2e8f0',
+        bodyColor: '#cbd5e1',
+        borderColor: 'rgba(99,102,241,0.3)',
+        borderWidth: 1,
+        padding: 12,
+        cornerRadius: 8,
       }
     }
   };
 
-  const pieOptions = {
+  const barOptions: any = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: {
-        position: 'bottom' as const,
-        labels: { color: '#94a3b8' }
+        labels: { color: '#94a3b8', usePointStyle: true, pointStyle: 'rect', padding: 20, font: { size: 12 } }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(15,23,42,0.95)',
+        titleColor: '#e2e8f0',
+        bodyColor: '#cbd5e1',
+        borderColor: 'rgba(99,102,241,0.3)',
+        borderWidth: 1,
+        padding: 12,
+        cornerRadius: 8,
       }
     },
-    cutout: '70%'
+    scales: {
+      x: { grid: { color: darkGridColor }, ticks: { color: tickColor, font: { size: 11 } }, stacked: false },
+      y: { grid: { color: darkGridColor }, ticks: { color: tickColor, font: { size: 11 }, stepSize: 1 }, beginAtZero: true }
+    }
   };
+
+  const rangeOptions = [
+    { key: '24h', label: '24 Giờ' },
+    { key: '7d', label: '7 Ngày' },
+    { key: '30d', label: '30 Ngày' },
+  ];
 
   return (
     <AppShell
       title="Data Analytics"
       subtitle="Phân tích lịch sử môi trường và tần suất hoạt động hệ thống"
     >
-      <div className="faceai-actions-bar" style={{ marginBottom: 24, justifyContent: 'flex-start', gap: 12 }}>
-        <button 
-          className={`faceai-btn ${range === '24h' ? 'faceai-btn-primary' : 'faceai-btn-ghost'}`}
-          onClick={() => setRange('24h')}
-        >
-          24 Giờ Qua
-        </button>
-        <button 
-          className={`faceai-btn ${range === '7d' ? 'faceai-btn-primary' : 'faceai-btn-ghost'}`}
-          onClick={() => setRange('7d')}
-        >
-          7 Ngày Qua
-        </button>
-        <button 
-          className={`faceai-btn ${range === '30d' ? 'faceai-btn-primary' : 'faceai-btn-ghost'}`}
-          onClick={() => setRange('30d')}
-        >
-          30 Ngày Qua
-        </button>
-      </div>
+      {/* Range selector */}
+      <section className="section-block">
+        <div className="analytics-range-bar">
+          {rangeOptions.map(opt => (
+            <button
+              key={opt.key}
+              className={`analytics-range-btn ${range === opt.key ? 'is-active' : ''}`}
+              onClick={() => setRange(opt.key)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {loading ? (
-        <div className="faceai-empty">Đang tải dữ liệu biểu đồ...</div>
+        <section className="section-block">
+          <div className="analytics-loading">
+            <div className="analytics-loading-spinner" />
+            <span>Đang tải dữ liệu biểu đồ...</span>
+          </div>
+        </section>
+      ) : error ? (
+        <section className="section-block">
+          <div className="analytics-error">{error}</div>
+        </section>
       ) : (
-        <div className="analytics-grid">
-          
-          {/* Main Line Chart */}
-          <div className="faceai-section" style={{ gridColumn: '1 / -1' }}>
-            <div className="faceai-section-header">
-              <h2 className="faceai-section-title">🌡️ Môi trường</h2>
-              <span className="faceai-section-caption">Biến động Nhiệt độ và Độ ẩm</span>
+        <>
+          {/* Main Line Chart — Temp & Humidity */}
+          <section className="section-block">
+            <div className="analytics-card">
+              <div className="analytics-card-header">
+                <div>
+                  <h2 className="analytics-card-title">🌡️ Nhiệt độ & Độ ẩm</h2>
+                  <p className="analytics-card-caption">Biến động theo thời gian</p>
+                </div>
+                <span className="analytics-card-badge">
+                  {sensorData?.labels?.length || 0} điểm dữ liệu
+                </span>
+              </div>
+              <div className="analytics-chart-container analytics-chart-lg">
+                <Line data={lineChartData} options={lineOptions} />
+              </div>
             </div>
-            <div style={{ height: 400, width: '100%', padding: '16px 0' }}>
-              <Line data={lineChartData} options={chartOptions} />
-            </div>
-          </div>
+          </section>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-            {/* Doughnut Chart */}
-            <div className="faceai-section">
-              <div className="faceai-section-header">
-                <h2 className="faceai-section-title">🛡️ Face AI Stats</h2>
-                <span className="faceai-section-caption">Tỷ lệ mở cửa hợp lệ (30 ngày)</span>
+          {/* Light Chart */}
+          <section className="section-block">
+            <div className="analytics-card">
+              <div className="analytics-card-header">
+                <div>
+                  <h2 className="analytics-card-title">💡 Ánh sáng</h2>
+                  <p className="analytics-card-caption">Mức sáng môi trường</p>
+                </div>
               </div>
-              <div style={{ height: 300, width: '100%', padding: '16px 0' }}>
-                <Doughnut data={doughnutData} options={pieOptions} />
-              </div>
-            </div>
-
-            {/* Bar Chart */}
-            <div className="faceai-section">
-              <div className="faceai-section-header">
-                <h2 className="faceai-section-title">⚡ Device Activity</h2>
-                <span className="faceai-section-caption">Tần suất thiết bị (7 ngày)</span>
-              </div>
-              <div style={{ height: 300, width: '100%', padding: '16px 0' }}>
-                <Bar data={barData} options={chartOptions} />
+              <div className="analytics-chart-container analytics-chart-md">
+                <Line data={lightChartData} options={lineOptions} />
               </div>
             </div>
-          </div>
+          </section>
 
-        </div>
+          {/* Bottom row: Doughnut + Bar */}
+          <section className="section-block">
+            <div className="analytics-bottom-grid">
+              {/* Doughnut */}
+              <div className="analytics-card">
+                <div className="analytics-card-header">
+                  <div>
+                    <h2 className="analytics-card-title">🛡️ Face AI Stats</h2>
+                    <p className="analytics-card-caption">Tỷ lệ mở cửa hợp lệ (30 ngày)</p>
+                  </div>
+                </div>
+                <div className="analytics-doughnut-wrap">
+                  <div className="analytics-chart-container analytics-chart-sm">
+                    <Doughnut data={doughnutData} options={pieOptions} />
+                  </div>
+                  <div className="analytics-doughnut-stats">
+                    <div className="analytics-stat-item">
+                      <span className="analytics-stat-dot" style={{ background: '#22c55e' }} />
+                      <span>Hợp lệ</span>
+                      <strong>{validCount}</strong>
+                    </div>
+                    <div className="analytics-stat-item">
+                      <span className="analytics-stat-dot" style={{ background: '#ef4444' }} />
+                      <span>Từ chối</span>
+                      <strong>{deniedCount}</strong>
+                    </div>
+                    <div className="analytics-stat-item analytics-stat-total">
+                      <span>Tổng</span>
+                      <strong>{totalAccess}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bar */}
+              <div className="analytics-card">
+                <div className="analytics-card-header">
+                  <div>
+                    <h2 className="analytics-card-title">⚡ Device Activity</h2>
+                    <p className="analytics-card-caption">Số lệnh theo ngày (7 ngày)</p>
+                  </div>
+                </div>
+                <div className="analytics-chart-container analytics-chart-sm">
+                  <Bar data={barData} options={barOptions} />
+                </div>
+              </div>
+            </div>
+          </section>
+        </>
       )}
     </AppShell>
   );

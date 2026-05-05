@@ -1,18 +1,14 @@
 import { NextResponse } from 'next/server';
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  user: process.env.POSTGRES_USER || 'postgres',
-  host: process.env.POSTGRES_HOST || 'localhost',
-  database: process.env.POSTGRES_DB || 'yolohome',
-  password: process.env.POSTGRES_PASSWORD || 'password',
-  port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
-});
+import { pool } from '../../../lib/db';
+import { requireAuth } from '../../../lib/sessionAuth';
 
 export async function GET(request) {
   try {
+    const auth = await requireAuth(request);
+    if (!auth.ok) return auth.response;
+
     const { searchParams } = new URL(request.url);
-    const range = searchParams.get('range') || '24h'; // '24h', '7d', '30d'
+    const range = searchParams.get('range') || '24h';
     
     let interval = '24 HOURS';
     if (range === '7d') interval = '7 DAYS';
@@ -22,58 +18,49 @@ export async function GET(request) {
       SELECT 
         feed_key,
         DATE_TRUNC('hour', updated_at) AS time_bucket,
-        AVG(value_num) AS avg_value
+        ROUND(AVG(value_num)::numeric, 2) AS avg_value
       FROM metric_history
       WHERE feed_key IN ('sensor-temp', 'sensor-humid', 'sensor-light')
+        AND value_num IS NOT NULL
         AND updated_at >= NOW() - INTERVAL '${interval}'
       GROUP BY feed_key, DATE_TRUNC('hour', updated_at)
       ORDER BY time_bucket ASC;
     `;
 
-    const client = await pool.connect();
-    const result = await client.query(query);
-    client.release();
+    const { rows } = await pool.query(query);
 
-    // Format data for chart
-    const data = {
-      labels: [],
-      datasets: {
-        'sensor-temp': [],
-        'sensor-humid': [],
-        'sensor-light': []
+    // Collect unique timestamps
+    const timeSet = new Set();
+    rows.forEach(row => {
+      timeSet.add(new Date(row.time_bucket).toISOString());
+    });
+
+    const sortedTimes = Array.from(timeSet).sort();
+    const labels = sortedTimes.map(t => {
+      const d = new Date(t);
+      return d.toLocaleString('vi-VN', {
+        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+      });
+    });
+
+    // Map values
+    const mapped = { 'sensor-temp': {}, 'sensor-humid': {}, 'sensor-light': {} };
+    rows.forEach(row => {
+      const ts = new Date(row.time_bucket).toISOString();
+      if (mapped[row.feed_key]) {
+        mapped[row.feed_key][ts] = parseFloat(row.avg_value);
       }
+    });
+
+    const datasets = {
+      'sensor-temp': sortedTimes.map(t => mapped['sensor-temp'][t] ?? null),
+      'sensor-humid': sortedTimes.map(t => mapped['sensor-humid'][t] ?? null),
+      'sensor-light': sortedTimes.map(t => mapped['sensor-light'][t] ?? null),
     };
 
-    const timeSet = new Set();
-    const rawData = result.rows;
-
-    rawData.forEach(row => {
-      const timeStr = new Date(row.time_bucket).toLocaleString('vi-VN', { 
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
-      });
-      timeSet.add(timeStr);
-    });
-
-    data.labels = Array.from(timeSet).sort();
-
-    // Map values to labels
-    const mapped = { 'sensor-temp': {}, 'sensor-humid': {}, 'sensor-light': {} };
-    rawData.forEach(row => {
-      const timeStr = new Date(row.time_bucket).toLocaleString('vi-VN', { 
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
-      });
-      mapped[row.feed_key][timeStr] = parseFloat(row.avg_value).toFixed(2);
-    });
-
-    data.labels.forEach(label => {
-      data.datasets['sensor-temp'].push(mapped['sensor-temp'][label] || null);
-      data.datasets['sensor-humid'].push(mapped['sensor-humid'][label] || null);
-      data.datasets['sensor-light'].push(mapped['sensor-light'][label] || null);
-    });
-
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data: { labels, datasets } });
   } catch (error) {
-    console.error('Lỗi truy vấn Analytics Sensors:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi Database' }, { status: 500 });
+    console.error('Analytics Sensors Error:', error);
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }

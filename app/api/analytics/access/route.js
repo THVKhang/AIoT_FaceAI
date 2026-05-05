@@ -1,35 +1,30 @@
 import { NextResponse } from 'next/server';
-import { Pool } from 'pg';
-
-const pool = new Pool({
-  user: process.env.POSTGRES_USER || 'postgres',
-  host: process.env.POSTGRES_HOST || 'localhost',
-  database: process.env.POSTGRES_DB || 'yolohome',
-  password: process.env.POSTGRES_PASSWORD || 'password',
-  port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
-});
+import { pool } from '../../../lib/db';
+import { requireAuth } from '../../../lib/sessionAuth';
 
 export async function GET(request) {
   try {
-    const client = await pool.connect();
-    
+    const auth = await requireAuth(request);
+    if (!auth.ok) return auth.response;
+
     // 1. Access Logs Stats (Doughnut Chart)
-    const accessQuery = `
+    const accessRes = await pool.query(`
       SELECT result, COUNT(*) as total 
       FROM access_logs 
       WHERE created_at >= NOW() - INTERVAL '30 DAYS'
       GROUP BY result;
-    `;
-    const accessRes = await client.query(accessQuery);
+    `);
     
-    const faceStats = { Valid: 0, Stranger: 0 };
+    let validCount = 0;
+    let deniedCount = 0;
     accessRes.rows.forEach(row => {
-      if (row.result.toLowerCase() === 'valid') faceStats.Valid = parseInt(row.total);
-      if (row.result.toLowerCase() === 'stranger' || row.result.toLowerCase() === 'rejected') faceStats.Stranger += parseInt(row.total);
+      const r = (row.result || '').toLowerCase();
+      if (r === 'success' || r === 'valid') validCount += parseInt(row.total);
+      else deniedCount += parseInt(row.total);
     });
 
-    // 2. Command Activity Stats (Bar Chart)
-    const cmdQuery = `
+    // 2. Command Activity Stats (Bar Chart) — last 7 days
+    const cmdRes = await pool.query(`
       SELECT 
         feed_key,
         DATE_TRUNC('day', created_at) AS time_bucket,
@@ -38,48 +33,46 @@ export async function GET(request) {
       WHERE created_at >= NOW() - INTERVAL '7 DAYS'
       GROUP BY feed_key, DATE_TRUNC('day', created_at)
       ORDER BY time_bucket ASC;
-    `;
-    const cmdRes = await client.query(cmdQuery);
-    
-    client.release();
+    `);
 
-    // Format Commands Data
-    const cmdData = {
-      labels: [],
-      datasets: {
-        'button-fan': [],
-        'button-door': []
-      }
-    };
-
+    // Collect unique dates
     const timeSet = new Set();
     cmdRes.rows.forEach(row => {
-      timeSet.add(new Date(row.time_bucket).toLocaleDateString('vi-VN'));
+      timeSet.add(new Date(row.time_bucket).toISOString().split('T')[0]);
     });
-    cmdData.labels = Array.from(timeSet).sort();
+    const sortedDays = Array.from(timeSet).sort();
+    const labels = sortedDays.map(d => {
+      const dt = new Date(d);
+      return dt.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    });
 
-    const mappedCmd = { 'button-fan': {}, 'button-door': {} };
+    // Map all feed_keys dynamically
+    const feedKeys = ['button-door', 'button-light', 'fan'];
+    const mapped = {};
+    feedKeys.forEach(k => { mapped[k] = {}; });
+    
     cmdRes.rows.forEach(row => {
-      const timeStr = new Date(row.time_bucket).toLocaleDateString('vi-VN');
-      if (mappedCmd[row.feed_key]) {
-         mappedCmd[row.feed_key][timeStr] = parseInt(row.total_cmds);
+      const dayKey = new Date(row.time_bucket).toISOString().split('T')[0];
+      const fk = row.feed_key;
+      if (mapped[fk]) {
+        mapped[fk][dayKey] = parseInt(row.total_cmds);
       }
     });
 
-    cmdData.labels.forEach(label => {
-      cmdData.datasets['button-fan'].push(mappedCmd['button-fan'][label] || 0);
-      cmdData.datasets['button-door'].push(mappedCmd['button-door'][label] || 0);
+    const datasets = {};
+    feedKeys.forEach(k => {
+      datasets[k] = sortedDays.map(d => mapped[k][d] || 0);
     });
 
     return NextResponse.json({ 
       success: true, 
       data: {
-        faceStats,
-        commandStats: cmdData
+        faceStats: { Valid: validCount, Stranger: deniedCount },
+        commandStats: { labels, datasets }
       }
     });
   } catch (error) {
-    console.error('Lỗi truy vấn Analytics Access:', error);
-    return NextResponse.json({ success: false, message: 'Lỗi Database' }, { status: 500 });
+    console.error('Analytics Access Error:', error);
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }
