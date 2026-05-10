@@ -48,29 +48,52 @@ export default function AdminFaces() {
   // Keep facesRef in sync with faces state so detection interval always has latest data
   useEffect(() => { facesRef.current = faces; }, [faces]);
 
+  const [modelLoadStage, setModelLoadStage] = useState('');
+
   useEffect(() => { 
     fetchFaces();
-    import('@vladmandic/face-api').then((api) => {
-      faceapi = api;
-      loadFaceModels();
-    }).catch(e => console.error("Lỗi import face-api:", e));
+    initFaceApi();
   }, []);
 
-  const loadFaceModels = async () => {
+  const initFaceApi = async () => {
+    setModelLoadStage('Importing face-api library...');
+    try {
+      const api = await import('@vladmandic/face-api');
+      faceapi = api;
+      setModelLoadStage('Library loaded. Loading AI models...');
+      await loadFaceModels();
+    } catch (e) {
+      console.error("Lỗi import face-api:", e);
+      setModelLoadStage('❌ Lỗi import thư viện AI');
+      setStatusMsg('❌ Không thể tải thư viện AI. Hãy refresh trang (Ctrl+Shift+R).');
+    }
+  };
+
+  const loadFaceModels = async (retryCount = 0) => {
     if (!faceapi) return;
     try {
-      setStatusMsg('Đang tải AI Model (TinyFaceDetector)...');
+      setModelLoadStage('Loading TinyFaceDetector...');
       await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-      setStatusMsg('Đang tải AI Model (FaceLandmark)...');
+
+      setModelLoadStage('Loading FaceLandmark68...');
       await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-      setStatusMsg('Đang tải AI Model (FaceRecognition ~6MB)...');
+
+      setModelLoadStage('Loading FaceRecognition (~6MB)...');
       await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+
       setModelsLoaded(true);
+      setModelLoadStage('');
       setStatusMsg('✅ AI Model sẵn sàng — Hướng camera vào khuôn mặt');
       console.log('Face-API models loaded successfully');
     } catch (e) {
       console.error('Lỗi tải model Face-API:', e);
-      setStatusMsg('❌ Lỗi tải AI Model. Hãy refresh trang.');
+      if (retryCount < 2) {
+        setModelLoadStage(`Retry ${retryCount + 1}/2 — Loading models...`);
+        setTimeout(() => loadFaceModels(retryCount + 1), 2000);
+      } else {
+        setModelLoadStage('❌ Lỗi tải model');
+        setStatusMsg('❌ Không thể tải AI Model sau 3 lần thử. Refresh trang (Ctrl+Shift+R).');
+      }
     }
   };
 
@@ -251,11 +274,7 @@ export default function AdminFaces() {
       });
       streamRef.current = mediaStream;
       setCameraMode('webcam');
-      if (!modelsLoaded) {
-        setStatusMsg('Webcam hoạt động — Đang tải AI Model...');
-      } else {
-        setStatusMsg('✅ Webcam + AI Model sẵn sàng');
-      }
+      setStatusMsg(modelsLoaded ? '✅ Webcam sẵn sàng' : 'Webcam hoạt động');
     } catch (err) {
       console.error('Webcam error:', err);
       setStatusMsg('Không thể truy cập webcam. Hãy cấp quyền camera.');
@@ -559,6 +578,14 @@ export default function AdminFaces() {
           </div>
           <span className="faceai-monitor-meta">{modeLabel}</span>
         </div>
+
+        {/* Model loading banner — persistent, independent from status bar */}
+        {modelLoadStage && (
+          <div className="faceai-model-banner">
+            <div className="faceai-model-spinner" />
+            <span>{modelLoadStage}</span>
+          </div>
+        )}
 
         <div className="faceai-monitor-viewport">
           {cameraMode === 'stream' ? (
