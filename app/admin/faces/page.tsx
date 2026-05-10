@@ -35,6 +35,7 @@ export default function AdminFaces() {
   const [regStep, setRegStep] = useState(0);
   const [regDescriptors, setRegDescriptors] = useState<Float32Array[]>([]);
   const [regCountdown, setRegCountdown] = useState(0);
+  const [regName, setRegName] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null); // For snapshot
@@ -312,18 +313,25 @@ export default function AdminFaces() {
 
   const startMultiAngleRegistration = () => {
     if (cameraMode !== 'webcam') {
-      setStatusMsg('Hãy bật camera webcam trước khi đăng ký');
+      toast.error('Hãy bật camera webcam trước khi đăng ký');
       return;
     }
     if (!modelsLoaded) {
-      setStatusMsg('AI Model chưa tải xong, vui lòng chờ...');
+      toast.error('AI Model chưa tải xong, vui lòng chờ...');
       return;
     }
+    // Prompt for name first
+    const name = window.prompt('Nhập tên người dùng cần đăng ký:');
+    if (!name || !name.trim()) {
+      toast.info('Đã hủy đăng ký — chưa nhập tên');
+      return;
+    }
+    setRegName(name.trim());
     setIsRegistering(true);
     setRegStep(0);
     setRegDescriptors([]);
     setRegCountdown(3);
-    toast.info('Bắt đầu đăng ký khuôn mặt — Hãy quay đầu theo hướng dẫn!');
+    toast.info(`Đăng ký cho "${name.trim()}" — Quay đầu theo hướng dẫn!`);
   };
 
   // Auto-capture countdown for each pose
@@ -390,6 +398,7 @@ export default function AdminFaces() {
       const formData = new FormData();
       formData.append('file', imageBlob, 'webcam-capture.jpg');
       formData.append('face_vector', JSON.stringify(Array.from(avgDescriptor)));
+      formData.append('name', regName || 'Unknown');
 
       const res = await fetch('/api/faces/identify-or-register', {
         method: 'POST',
@@ -398,10 +407,10 @@ export default function AdminFaces() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success(`Đăng ký thành công! (${descriptors.length} góc quay) — Hãy phê duyệt trong Pending.`);
-        setStatusMsg(data.message || 'Đăng ký thành công');
+        toast.success(`✅ Đăng ký "${regName}" thành công! (${descriptors.length} góc quay)`);
+        setStatusMsg(`Đã đăng ký: ${regName}`);
         setCapturedImage(URL.createObjectURL(imageBlob));
-        setTimeout(fetchFaces, 1500);
+        setTimeout(fetchFaces, 1000);
       } else {
         setStatusMsg(data.error || 'Lỗi khi lưu khuôn mặt');
       }
@@ -415,6 +424,7 @@ export default function AdminFaces() {
   };
 
   const cancelRegistration = () => {
+    setRegName('');
     setIsRegistering(false);
     setRegStep(0);
     setRegDescriptors([]);
@@ -532,22 +542,20 @@ export default function AdminFaces() {
 
         <div className="faceai-monitor-viewport">
           {cameraMode === 'stream' ? (
-            <img src={`${STREAM_URL}/video_feed?t=${streamCacheBuster}`} alt="Live Camera Feed" />
+            <img src={`${STREAM_URL}/video_feed?t=${streamCacheBuster}`} alt="Live Camera Feed" style={{ width: '100%', maxHeight: '480px', objectFit: 'contain' }} />
           ) : cameraMode === 'webcam' ? (
-            <div style={{ position: 'relative', display: 'inline-block' }}>
+            <div style={{ position: 'relative', width: '100%', maxWidth: 640, margin: '0 auto' }}>
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
                 onPlay={handleVideoPlay}
-                width={640}
-                height={480}
-                style={{ transform: 'scaleX(-1)', display: 'block' }}
+                style={{ width: '100%', height: 'auto', transform: 'scaleX(-1)', display: 'block', borderRadius: 8 }}
               />
               <canvas 
                 ref={overlayRef} 
-                style={{ position: 'absolute', top: 0, left: 0, transform: 'scaleX(-1)' }} 
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', transform: 'scaleX(-1)' }} 
               />
               <canvas ref={canvasRef} style={{ display: 'none' }} />
             </div>
@@ -556,11 +564,7 @@ export default function AdminFaces() {
               <div className="faceai-monitor-placeholder-icon">📹</div>
               <div className="faceai-monitor-placeholder-title">Camera đang tắt</div>
               <div className="faceai-monitor-placeholder-text">
-                Nhấn &quot;Bật Camera&quot; bên dưới để bắt đầu stream video.
-                <br />
-                <span style={{ fontSize: '13px', opacity: 0.7, marginTop: '8px', display: 'inline-block' }}>
-                  Tự động dùng webcam trình duyệt nếu không có Python service.
-                </span>
+                Nhấn &quot;Bật Camera&quot; bên dưới để bắt đầu.
               </div>
             </div>
           )}
@@ -569,6 +573,7 @@ export default function AdminFaces() {
         {/* Multi-angle registration overlay */}
         {isRegistering && cameraMode === 'webcam' && (
           <div className="faceai-reg-overlay">
+            <div className="faceai-reg-name-badge">Đăng ký: <strong>{regName}</strong></div>
             <div className="faceai-reg-progress">
               {REGISTRATION_POSES.map((pose, idx) => (
                 <div key={pose.key} className={`faceai-reg-step ${idx < regStep ? 'done' : idx === regStep ? 'active' : ''}`}>
@@ -584,22 +589,14 @@ export default function AdminFaces() {
               )}
               <div className="faceai-reg-step-count">Bước {regStep + 1} / {REGISTRATION_POSES.length}</div>
             </div>
-            <button className="faceai-btn faceai-btn-danger" style={{ marginTop: 8 }} onClick={cancelRegistration}>Hủy đăng ký</button>
+            <button className="faceai-btn faceai-btn-danger faceai-btn-sm" onClick={cancelRegistration}>✕ Hủy đăng ký</button>
           </div>
         )}
 
         {/* Status message bar */}
         {statusMsg && !isRegistering && (
-          <div style={{
-            padding: '8px 16px',
-            fontSize: '13px',
-            color: '#94a3b8',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}>
-            <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: cameraActive ? '#22c55e' : '#64748b' }} />
+          <div className="faceai-status-bar">
+            <span className={`faceai-status-dot ${cameraActive ? 'is-active' : ''}`} />
             {statusMsg}
           </div>
         )}
@@ -628,64 +625,34 @@ export default function AdminFaces() {
         )}
 
         <div className="faceai-actions-bar">
-          <div className="faceai-actions-group">
+          <div className="faceai-actions-row">
             {!cameraActive ? (
-              <button
-                className="faceai-btn faceai-btn-primary"
-                disabled={isSending}
-                onClick={handleStartCamera}
-              >
+              <button className="faceai-btn faceai-btn-primary" disabled={isSending} onClick={handleStartCamera}>
                 ▶ Bật Camera
               </button>
             ) : (
-              <button
-                className="faceai-btn faceai-btn-danger"
-                disabled={isSending}
-                onClick={handleStopCamera}
-              >
-                ■ Tắt Camera
+              <button className="faceai-btn faceai-btn-danger" disabled={isSending} onClick={handleStopCamera}>
+                ■ Tắt
               </button>
             )}
             {cameraMode === 'webcam' && (
-              <button
-                className="faceai-btn faceai-btn-ghost"
-                style={{ borderColor: 'var(--vf-primary, #5B61F5)', color: 'var(--vf-primary, #5B61F5)' }}
-                disabled={isSending}
-                onClick={handleCaptureSnapshot}
-              >
-                📸 Chụp ảnh
+              <button className="faceai-btn faceai-btn-ghost" disabled={isSending} onClick={handleCaptureSnapshot}>
+                📸 Chụp
               </button>
             )}
-            <button
-              className="faceai-btn faceai-btn-success"
-              disabled={isSending}
-              onClick={handleRegisterFace}
-            >
-              + Đăng ký khuôn mặt
+            <button className="faceai-btn faceai-btn-success" disabled={isSending || isRegistering} onClick={handleRegisterFace}>
+              + Đăng ký
             </button>
-            <button
-              className="faceai-btn faceai-btn-ghost"
-              style={{ marginLeft: 8, borderColor: 'var(--vf-primary, #5B61F5)', color: 'var(--vf-primary, #5B61F5)' }}
-              disabled={isSending}
-              onClick={() => sendDoorCommand('1')}
-            >
-              🔓 Mở Cửa
+            <button className="faceai-btn faceai-btn-ghost" disabled={isSending} onClick={() => sendDoorCommand('1')}>
+              🔓 Mở
             </button>
-            <button
-              className="faceai-btn faceai-btn-ghost"
-              style={{ marginLeft: 8 }}
-              disabled={isSending}
-              onClick={() => sendDoorCommand('0')}
-            >
-              🔒 Đóng Cửa
+            <button className="faceai-btn faceai-btn-ghost" disabled={isSending} onClick={() => sendDoorCommand('0')}>
+              🔒 Đóng
+            </button>
+            <button className="faceai-btn faceai-btn-ghost" onClick={fetchFaces} style={{ marginLeft: 'auto' }}>
+              ↻
             </button>
           </div>
-          <button
-            className="faceai-btn faceai-btn-ghost"
-            onClick={fetchFaces}
-          >
-            ↻ Refresh Data
-          </button>
         </div>
       </div>
 
