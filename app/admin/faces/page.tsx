@@ -10,6 +10,15 @@ const STREAM_URL = process.env.NEXT_PUBLIC_STREAM_URL || 'http://localhost:5001'
 
 type CameraMode = 'off' | 'stream' | 'webcam';
 
+// Multi-angle registration poses
+const REGISTRATION_POSES = [
+  { key: 'center', label: '👤 Nhìn thẳng', instruction: 'Nhìn thẳng vào camera' },
+  { key: 'left', label: '👈 Quay trái', instruction: 'Quay đầu sang TRÁI nhẹ' },
+  { key: 'right', label: '👉 Quay phải', instruction: 'Quay đầu sang PHẢI nhẹ' },
+  { key: 'up', label: '👆 Ngẩng lên', instruction: 'Ngẩng đầu lên nhẹ' },
+  { key: 'down', label: '👇 Cúi xuống', instruction: 'Cúi đầu xuống nhẹ' },
+];
+
 export default function AdminFaces() {
   const [faces, setFaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,12 +30,22 @@ export default function AdminFaces() {
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [recognizing, setRecognizing] = useState(false);
 
+  // Multi-angle registration state
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [regStep, setRegStep] = useState(0);
+  const [regDescriptors, setRegDescriptors] = useState<Float32Array[]>([]);
+  const [regCountdown, setRegCountdown] = useState(0);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null); // For snapshot
   const overlayRef = useRef<HTMLCanvasElement>(null); // For bounding boxes
   const streamRef = useRef<MediaStream | null>(null);
   const detectionInterval = useRef<NodeJS.Timeout | null>(null);
   const lastDoorCommandRef = useRef<number | null>(null);
+  const facesRef = useRef<any[]>([]);
+
+  // Keep facesRef in sync with faces state so detection interval always has latest data
+  useEffect(() => { facesRef.current = faces; }, [faces]);
 
   useEffect(() => { 
     fetchFaces();
@@ -145,20 +164,6 @@ export default function AdminFaces() {
 
   const handleVideoPlay = () => {
     if (cameraMode !== 'webcam' || !modelsLoaded || !videoRef.current || !overlayRef.current) return;
-    
-    // Create FaceMatcher from registered Valid faces
-    const validFaces = faces.filter(f => f.status === 'Valid' && f.face_vector);
-    const labeledDescriptors = validFaces.map(f => {
-      try {
-        const arr = typeof f.face_vector === 'string' ? JSON.parse(f.face_vector) : f.face_vector;
-        if (arr.length > 0) {
-          return new faceapi.LabeledFaceDescriptors(f.name, [new Float32Array(arr)]);
-        }
-      } catch (e) { console.warn('Invalid vector for', f.name); }
-      return null;
-    }).filter(Boolean) as any[];
-
-    const faceMatcher = labeledDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledDescriptors, 0.5) : null;
 
     faceapi.matchDimensions(overlayRef.current, videoRef.current);
 
@@ -174,37 +179,52 @@ export default function AdminFaces() {
       if (ctx) ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
 
       const resizedDetections = faceapi.resizeResults(detections, videoRef.current);
-      
+
+      // Rebuild FaceMatcher from latest faces every cycle
+      const currentFaces = facesRef.current;
+      const validFaces = currentFaces.filter((f: any) => f.status === 'Valid' && f.face_vector);
+      const labeledDescriptors = validFaces.map((f: any) => {
+        try {
+          const arr = typeof f.face_vector === 'string' ? JSON.parse(f.face_vector) : f.face_vector;
+          if (arr && arr.length > 0) {
+            return new faceapi.LabeledFaceDescriptors(f.name, [new Float32Array(arr)]);
+          }
+        } catch (e) { console.warn('Invalid vector for', f.name); }
+        return null;
+      }).filter(Boolean) as any[];
+
+      const faceMatcher = labeledDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledDescriptors, 0.5) : null;
+
       if (faceMatcher) {
-        const results = resizedDetections.map(d => faceMatcher.findBestMatch(d.descriptor));
-        results.forEach((result, i) => {
+        const results = resizedDetections.map((d: any) => faceMatcher.findBestMatch(d.descriptor));
+        results.forEach((result: any, i: number) => {
           const box = resizedDetections[i].detection.box;
-          const drawBox = new faceapi.draw.DrawBox(box, { 
-            label: result.toString(),
-            boxColor: result.label === 'unknown' ? 'red' : '#22c55e'
+          const isKnown = result.label !== 'unknown';
+          const drawBox = new faceapi.draw.DrawBox(box, {
+            label: isKnown ? `✅ ${result.label}` : `❌ Stranger`,
+            boxColor: isKnown ? '#22c55e' : '#ef4444',
           });
           drawBox.draw(overlayRef.current!);
-          
-          if (result.label !== 'unknown') {
-            // Cooldown: only send door command once every 10 seconds
+
+          if (isKnown) {
             const now = Date.now();
             if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
               lastDoorCommandRef.current = now;
               sendDoorCommand('1');
               toast.success(`Đã nhận diện: ${result.label} — Mở Cửa!`);
             }
-            setStatusMsg(`Đã nhận diện: ${result.label}`);
+            setStatusMsg(`✅ Hợp lệ: ${result.label}`);
+          } else {
+            setStatusMsg(`❌ Khuôn mặt lạ — Không có quyền truy cập`);
           }
         });
       } else {
-        // Just draw boxes if no one is registered yet
         faceapi.draw.drawDetections(overlayRef.current, resizedDetections);
+        if (detections.length > 0) {
+          setStatusMsg(`Phát hiện ${detections.length} khuôn mặt (Chưa có dữ liệu nhận diện)`);
+        }
       }
-
-      if (detections.length > 0 && !faceMatcher) {
-        setStatusMsg(`Phát hiện ${detections.length} khuôn mặt... (Chưa có dữ liệu nhận diện)`);
-      }
-    }, 400); // 2.5 FPS for performance
+    }, 500);
   };
 
   const startWebcam = useCallback(async () => {
@@ -288,14 +308,128 @@ export default function AdminFaces() {
     }
   };
 
-  const handleRegisterFace = async () => {
-    if (isSending) return;
+  // ==================== MULTI-ANGLE REGISTRATION ====================
+
+  const startMultiAngleRegistration = () => {
+    if (cameraMode !== 'webcam') {
+      setStatusMsg('Hãy bật camera webcam trước khi đăng ký');
+      return;
+    }
+    if (!modelsLoaded) {
+      setStatusMsg('AI Model chưa tải xong, vui lòng chờ...');
+      return;
+    }
+    setIsRegistering(true);
+    setRegStep(0);
+    setRegDescriptors([]);
+    setRegCountdown(3);
+    toast.info('Bắt đầu đăng ký khuôn mặt — Hãy quay đầu theo hướng dẫn!');
+  };
+
+  // Auto-capture countdown for each pose
+  useEffect(() => {
+    if (!isRegistering || regCountdown <= 0) return;
+    const timer = setTimeout(() => setRegCountdown(c => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [isRegistering, regCountdown]);
+
+  // Capture descriptor when countdown hits 0
+  useEffect(() => {
+    if (!isRegistering || regCountdown !== 0) return;
+    captureRegistrationPose();
+  }, [isRegistering, regCountdown]);
+
+  const captureRegistrationPose = async () => {
+    if (!videoRef.current || !faceapi) return;
+
+    const detection = await faceapi.detectSingleFace(
+      videoRef.current,
+      new faceapi.TinyFaceDetectorOptions()
+    ).withFaceLandmarks().withFaceDescriptor();
+
+    if (!detection) {
+      toast.error(`Không thấy khuôn mặt — ${REGISTRATION_POSES[regStep].label}. Thử lại!`);
+      setRegCountdown(3); // Retry this pose
+      return;
+    }
+
+    const newDescriptors = [...regDescriptors, detection.descriptor];
+    setRegDescriptors(newDescriptors);
+    toast.success(`✅ ${REGISTRATION_POSES[regStep].label} — OK!`);
+
+    if (regStep + 1 < REGISTRATION_POSES.length) {
+      // Move to next pose
+      setRegStep(regStep + 1);
+      setRegCountdown(3);
+    } else {
+      // All poses captured — compute average descriptor and save
+      await finalizeRegistration(newDescriptors);
+    }
+  };
+
+  const finalizeRegistration = async (descriptors: Float32Array[]) => {
     setIsSending(true);
-    setStatusMsg('Đang đăng ký khuôn mặt...');
+    setStatusMsg('Đang lưu khuôn mặt...');
 
     try {
-      if (cameraMode === 'stream') {
-        // Use Python service for registration
+      // Average all descriptors for a robust face vector
+      const avgDescriptor = new Float32Array(128);
+      for (const d of descriptors) {
+        for (let i = 0; i < 128; i++) avgDescriptor[i] += d[i];
+      }
+      for (let i = 0; i < 128; i++) avgDescriptor[i] /= descriptors.length;
+
+      const imageBlob = captureWebcamFrame();
+      if (!imageBlob) {
+        setStatusMsg('Không thể chụp ảnh từ webcam');
+        setIsRegistering(false);
+        setIsSending(false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', imageBlob, 'webcam-capture.jpg');
+      formData.append('face_vector', JSON.stringify(Array.from(avgDescriptor)));
+
+      const res = await fetch('/api/faces/identify-or-register', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success(`Đăng ký thành công! (${descriptors.length} góc quay) — Hãy phê duyệt trong Pending.`);
+        setStatusMsg(data.message || 'Đăng ký thành công');
+        setCapturedImage(URL.createObjectURL(imageBlob));
+        setTimeout(fetchFaces, 1500);
+      } else {
+        setStatusMsg(data.error || 'Lỗi khi lưu khuôn mặt');
+      }
+    } catch (e) {
+      console.error(e);
+      setStatusMsg('Lỗi hệ thống khi đăng ký');
+    } finally {
+      setIsRegistering(false);
+      setIsSending(false);
+    }
+  };
+
+  const cancelRegistration = () => {
+    setIsRegistering(false);
+    setRegStep(0);
+    setRegDescriptors([]);
+    setRegCountdown(0);
+    setStatusMsg('');
+    toast.info('Đã hủy đăng ký');
+  };
+
+  const handleRegisterFace = async () => {
+    if (isSending) return;
+
+    if (cameraMode === 'stream') {
+      setIsSending(true);
+      setStatusMsg('Đang đăng ký khuôn mặt...');
+      try {
         try {
           const res = await fetch(`${STREAM_URL}/cmd/register`);
           if (res.ok) {
@@ -304,63 +438,23 @@ export default function AdminFaces() {
             return;
           }
         } catch { /* fallthrough */ }
-        // Fallback to MQTT
         await fetch('/api/commands', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ feed_key: 'faceai-cmd', value: 'register' })
         });
         setStatusMsg('Đã gửi lệnh đăng ký qua MQTT');
         setTimeout(fetchFaces, 3000);
-      } else if (cameraMode === 'webcam') {
-        // Capture from webcam and send to identify API
-        if (!videoRef.current) {
-          setStatusMsg('Camera chưa sẵn sàng');
-          return;
-        }
-
-        const detection = await faceapi.detectSingleFace(
-          videoRef.current,
-          new faceapi.TinyFaceDetectorOptions()
-        ).withFaceLandmarks().withFaceDescriptor();
-
-        if (!detection) {
-          setStatusMsg('Không tìm thấy khuôn mặt nào để đăng ký! Hãy nhìn thẳng vào camera.');
-          setIsSending(false);
-          return;
-        }
-
-        const imageBlob = captureWebcamFrame();
-        if (!imageBlob) {
-          setStatusMsg('Không thể chụp ảnh từ webcam');
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', imageBlob, 'webcam-capture.jpg');
-        // Convert Float32Array descriptor to JSON string array
-        formData.append('face_vector', JSON.stringify(Array.from(detection.descriptor)));
-
-        const res = await fetch('/api/faces/identify-or-register', {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          setStatusMsg(data.message || 'Đã gửi ảnh để nhận diện');
-          setCapturedImage(URL.createObjectURL(imageBlob));
-          setTimeout(fetchFaces, 1500);
-        } else {
-          setStatusMsg(data.error || 'Lỗi khi xử lý ảnh');
-        }
-      } else {
-        setStatusMsg('Hãy bật camera trước');
+      } catch (e) {
+        console.error(e);
+        setStatusMsg('Lỗi hệ thống khi đăng ký');
+      } finally {
+        setIsSending(false);
       }
-    } catch (e) {
-      console.error(e);
-      setStatusMsg('Lỗi hệ thống khi đăng ký');
-    } finally {
-      setIsSending(false);
+    } else if (cameraMode === 'webcam') {
+      // Start multi-angle registration
+      startMultiAngleRegistration();
+    } else {
+      setStatusMsg('Hãy bật camera trước');
     }
   };
 
@@ -472,8 +566,30 @@ export default function AdminFaces() {
           )}
         </div>
 
+        {/* Multi-angle registration overlay */}
+        {isRegistering && cameraMode === 'webcam' && (
+          <div className="faceai-reg-overlay">
+            <div className="faceai-reg-progress">
+              {REGISTRATION_POSES.map((pose, idx) => (
+                <div key={pose.key} className={`faceai-reg-step ${idx < regStep ? 'done' : idx === regStep ? 'active' : ''}`}>
+                  {idx < regStep ? '✅' : pose.label.split(' ')[0]}
+                </div>
+              ))}
+            </div>
+            <div className="faceai-reg-instruction">
+              <div className="faceai-reg-pose-label">{REGISTRATION_POSES[regStep]?.label}</div>
+              <div className="faceai-reg-pose-text">{REGISTRATION_POSES[regStep]?.instruction}</div>
+              {regCountdown > 0 && (
+                <div className="faceai-reg-countdown">{regCountdown}</div>
+              )}
+              <div className="faceai-reg-step-count">Bước {regStep + 1} / {REGISTRATION_POSES.length}</div>
+            </div>
+            <button className="faceai-btn faceai-btn-danger" style={{ marginTop: 8 }} onClick={cancelRegistration}>Hủy đăng ký</button>
+          </div>
+        )}
+
         {/* Status message bar */}
-        {statusMsg && (
+        {statusMsg && !isRegistering && (
           <div style={{
             padding: '8px 16px',
             fontSize: '13px',
