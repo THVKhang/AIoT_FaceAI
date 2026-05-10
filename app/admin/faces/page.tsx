@@ -59,15 +59,18 @@ export default function AdminFaces() {
   const loadFaceModels = async () => {
     if (!faceapi) return;
     try {
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
-        faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
-        faceapi.nets.faceRecognitionNet.loadFromUri('/models'),
-      ]);
+      setStatusMsg('Đang tải AI Model (TinyFaceDetector)...');
+      await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+      setStatusMsg('Đang tải AI Model (FaceLandmark)...');
+      await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+      setStatusMsg('Đang tải AI Model (FaceRecognition ~6MB)...');
+      await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
       setModelsLoaded(true);
+      setStatusMsg('✅ AI Model sẵn sàng — Hướng camera vào khuôn mặt');
       console.log('Face-API models loaded successfully');
     } catch (e) {
       console.error('Lỗi tải model Face-API:', e);
+      setStatusMsg('❌ Lỗi tải AI Model. Hãy refresh trang.');
     }
   };
 
@@ -163,8 +166,16 @@ export default function AdminFaces() {
     }
   }, []);
 
-  const handleVideoPlay = () => {
-    if (cameraMode !== 'webcam' || !modelsLoaded || !videoRef.current || !overlayRef.current) return;
+  // Auto-start detection when models finish loading AFTER webcam is already playing
+  useEffect(() => {
+    if (modelsLoaded && cameraMode === 'webcam' && !detectionInterval.current) {
+      startDetectionLoop();
+    }
+  }, [modelsLoaded, cameraMode]);
+
+  const startDetectionLoop = () => {
+    if (!modelsLoaded || !videoRef.current || !overlayRef.current || !faceapi) return;
+    if (detectionInterval.current) return; // Already running
 
     faceapi.matchDimensions(overlayRef.current, videoRef.current);
 
@@ -228,6 +239,11 @@ export default function AdminFaces() {
     }, 500);
   };
 
+  const handleVideoPlay = () => {
+    if (cameraMode !== 'webcam') return;
+    startDetectionLoop();
+  };
+
   const startWebcam = useCallback(async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -235,7 +251,11 @@ export default function AdminFaces() {
       });
       streamRef.current = mediaStream;
       setCameraMode('webcam');
-      setStatusMsg('Webcam đang hoạt động. Vui lòng chờ tải AI Model...');
+      if (!modelsLoaded) {
+        setStatusMsg('Webcam hoạt động — Đang tải AI Model...');
+      } else {
+        setStatusMsg('✅ Webcam + AI Model sẵn sàng');
+      }
     } catch (err) {
       console.error('Webcam error:', err);
       setStatusMsg('Không thể truy cập webcam. Hãy cấp quyền camera.');
