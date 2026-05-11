@@ -19,6 +19,9 @@ const REGISTRATION_POSES = [
   { key: 'down', label: '👇 Cúi xuống', instruction: 'Cúi đầu xuống nhẹ' },
 ];
 
+// Shared detector options — lower threshold for better webcam detection
+const DETECT_OPTIONS = { inputSize: 320, scoreThreshold: 0.3 };
+
 export default function AdminFaces() {
   const [faces, setFaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -212,7 +215,7 @@ export default function AdminFaces() {
 
       const detections = await faceapi.detectAllFaces(
         videoRef.current,
-        new faceapi.TinyFaceDetectorOptions()
+        new faceapi.TinyFaceDetectorOptions(DETECT_OPTIONS)
       ).withFaceLandmarks().withFaceDescriptors();
 
       const ctx = overlayRef.current.getContext('2d');
@@ -374,7 +377,7 @@ export default function AdminFaces() {
     setIsRegistering(true);
     setRegStep(0);
     setRegDescriptors([]);
-    setRegCountdown(3);
+    setRegCountdown(4);
     toast.info(`Đăng ký cho "${name.trim()}" — Quay đầu theo hướng dẫn!`);
   };
 
@@ -396,12 +399,12 @@ export default function AdminFaces() {
 
     const detection = await faceapi.detectSingleFace(
       videoRef.current,
-      new faceapi.TinyFaceDetectorOptions()
+      new faceapi.TinyFaceDetectorOptions(DETECT_OPTIONS)
     ).withFaceLandmarks().withFaceDescriptor();
 
     if (!detection) {
       toast.error(`Không thấy khuôn mặt — ${REGISTRATION_POSES[regStep].label}. Thử lại!`);
-      setRegCountdown(3); // Retry this pose
+      setRegCountdown(4); // Retry this pose
       return;
     }
 
@@ -412,7 +415,7 @@ export default function AdminFaces() {
     if (regStep + 1 < REGISTRATION_POSES.length) {
       // Move to next pose
       setRegStep(regStep + 1);
-      setRegCountdown(3);
+      setRegCountdown(4);
     } else {
       // All poses captured — compute average descriptor and save
       await finalizeRegistration(newDescriptors);
