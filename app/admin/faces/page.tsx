@@ -239,24 +239,33 @@ export default function AdminFaces() {
           return null;
         }).filter(Boolean) as any[];
 
-        const faceMatcher = labeledDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledDescriptors, 0.6) : null;
+        let trace = `F:${detections.length} R:${labeledDescriptors.length}`;
+        setDebugInfo(`${trace} | Computing...`);
 
-        setDebugInfo(`Faces: ${detections.length} | Refs: ${labeledDescriptors.length} | Canvas: ${overlayRef.current.width}x${overlayRef.current.height}`);
+        try {
+          const faceMatcher = labeledDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledDescriptors, 0.6) : null;
+          trace += ` | M:${faceMatcher ? 'OK' : 'NULL'}`;
 
-        // Draw bounding boxes using direct Canvas 2D API (more reliable than face-api DrawBox)
-        const ctx2 = overlayRef.current.getContext('2d');
-        if (!ctx2) return;
+          const ctx2 = overlayRef.current.getContext('2d');
+          trace += ` | Ctx:${ctx2 ? 'OK' : 'NULL'}`;
+          
+          if (!ctx2) {
+            setDebugInfo(`${trace} | Aborting: No Canvas 2D`);
+            return;
+          }
 
-        if (faceMatcher && resizedDetections.length > 0) {
-          try {
+          if (faceMatcher && resizedDetections.length > 0) {
+            trace += ` | MatchStart`;
             const results = resizedDetections.map((d: any) => faceMatcher.findBestMatch(d.descriptor));
+            trace += ` | MatchDone:${results.length}`;
+
             results.forEach((result: any, i: number) => {
               const box = resizedDetections[i].detection.box;
               const isKnown = result.label !== 'unknown';
               const label = isKnown ? `✅ ${result.label}` : `❌ Stranger`;
               const color = isKnown ? '#22c55e' : '#ef4444';
 
-              setDebugInfo(`Match: ${result.toString()} | Box: ${Math.round(box.x)},${Math.round(box.y)},${Math.round(box.width)},${Math.round(box.height)}`);
+              trace += ` | Box:${Math.round(box.x)}`;
 
               // Draw rectangle
               ctx2.strokeStyle = color;
@@ -273,6 +282,8 @@ export default function AdminFaces() {
               ctx2.font = 'bold 14px Arial, sans-serif';
               ctx2.fillText(label, box.x + 8, box.y - 7);
 
+              trace += ` | DrawDone`;
+
               if (isKnown) {
                 const now = Date.now();
                 if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
@@ -285,20 +296,26 @@ export default function AdminFaces() {
                 setStatusMsg(`❌ Khuôn mặt lạ — Không có quyền truy cập`);
               }
             });
-          } catch (matchErr: any) {
-            console.error('Matcher/Draw error:', matchErr);
-            setDebugInfo(`❌ Matcher error: ${matchErr.message}`);
+            
+            setDebugInfo(`${trace} | All Done`);
+          } else if (resizedDetections.length > 0) {
+            trace += ` | DrawRaw`;
+            resizedDetections.forEach((d: any) => {
+              const box = d.detection.box;
+              ctx2.strokeStyle = '#6366f1';
+              ctx2.lineWidth = 2;
+              ctx2.strokeRect(box.x, box.y, box.width, box.height);
+            });
+            setStatusMsg(`Phát hiện ${detections.length} khuôn mặt (Chưa có dữ liệu nhận diện)`);
+            setDebugInfo(`${trace} | Done`);
+          } else {
+            setDebugInfo(`${trace} | No faces`);
           }
-        } else if (resizedDetections.length > 0) {
-          // No matcher — just draw detection boxes
-          resizedDetections.forEach((d: any) => {
-            const box = d.detection.box;
-            ctx2.strokeStyle = '#6366f1';
-            ctx2.lineWidth = 2;
-            ctx2.strokeRect(box.x, box.y, box.width, box.height);
-          });
-          setStatusMsg(`Phát hiện ${detections.length} khuôn mặt (Chưa có dữ liệu nhận diện)`);
+        } catch (innerErr: any) {
+          console.error('Inner detection error:', innerErr);
+          setDebugInfo(`${trace} | ❌ ERR: ${innerErr.message}`);
         }
+
       } catch (err) {
         console.error('Detection error:', err);
       }
