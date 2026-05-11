@@ -28,6 +28,7 @@ export default function AdminFaces() {
   const [isSending, setIsSending] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState('');
+  const [debugInfo, setDebugInfo] = useState('');
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [recognizing, setRecognizing] = useState(false);
 
@@ -208,6 +209,7 @@ export default function AdminFaces() {
     overlayRef.current.height = displaySize.height;
     faceapi.matchDimensions(overlayRef.current, displaySize);
     console.log('Detection loop started. Canvas:', displaySize.width, 'x', displaySize.height);
+    setDebugInfo(`Loop started: ${displaySize.width}x${displaySize.height}`);
 
     // Use recursive setTimeout instead of setInterval to prevent overlapping
     const runDetection = async () => {
@@ -239,6 +241,7 @@ export default function AdminFaces() {
 
         const faceMatcher = labeledDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledDescriptors, 0.6) : null;
 
+        setDebugInfo(`Faces: ${detections.length} | Refs: ${labeledDescriptors.length} | Canvas: ${overlayRef.current.width}x${overlayRef.current.height}`);
         if (detections.length > 0) {
           console.log(`Detected ${detections.length} face(s). Matcher has ${labeledDescriptors.length} reference(s).`);
         }
@@ -626,7 +629,7 @@ export default function AdminFaces() {
               />
               <canvas 
                 ref={overlayRef} 
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', transform: 'scaleX(-1)' }} 
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', transform: 'scaleX(-1)', zIndex: 10, pointerEvents: 'none' }} 
               />
               <canvas ref={canvasRef} style={{ display: 'none' }} />
             </div>
@@ -669,6 +672,11 @@ export default function AdminFaces() {
           <div className="faceai-status-bar">
             <span className={`faceai-status-dot ${cameraActive ? 'is-active' : ''}`} />
             {statusMsg}
+          </div>
+        )}
+        {debugInfo && cameraActive && (
+          <div style={{ padding: '4px 16px', fontSize: 11, color: '#64748b', fontFamily: 'monospace', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+            🔍 {debugInfo}
           </div>
         )}
 
