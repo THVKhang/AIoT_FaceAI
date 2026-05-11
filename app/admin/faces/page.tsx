@@ -231,11 +231,20 @@ export default function AdminFaces() {
         const validFaces = currentFaces.filter((f: any) => f.status === 'Valid' && f.face_vector);
         const labeledDescriptors = validFaces.map((f: any) => {
           try {
-            const arr = typeof f.face_vector === 'string' ? JSON.parse(f.face_vector) : f.face_vector;
-            if (arr && arr.length > 0) {
-              return new faceapi.LabeledFaceDescriptors(f.name, [new Float32Array(arr)]);
+            let arr = typeof f.face_vector === 'string' ? JSON.parse(f.face_vector) : f.face_vector;
+            
+            // Legacy data fix: Float32Array stringified directly turns into {"0": 0.1, "1": 0.2, ...}
+            if (arr && typeof arr === 'object' && !Array.isArray(arr)) {
+              arr = Object.values(arr);
             }
-          } catch (e) { console.warn('Invalid vector for', f.name); }
+            
+            // face-api recognition descriptors are exactly 128 dimensions
+            if (arr && Array.isArray(arr) && arr.length === 128) {
+              return new faceapi.LabeledFaceDescriptors(f.name, [new Float32Array(arr)]);
+            } else {
+              console.warn(`Skipping face ref ${f.name} - Invalid dimensions: ${arr?.length}`);
+            }
+          } catch (e) { console.warn('Invalid vector parse for', f.name); }
           return null;
         }).filter(Boolean) as any[];
 
