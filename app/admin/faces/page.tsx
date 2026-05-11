@@ -243,6 +243,10 @@ export default function AdminFaces() {
 
         setDebugInfo(`Faces: ${detections.length} | Refs: ${labeledDescriptors.length} | Canvas: ${overlayRef.current.width}x${overlayRef.current.height}`);
 
+        // Draw bounding boxes using direct Canvas 2D API (more reliable than face-api DrawBox)
+        const ctx2 = overlayRef.current.getContext('2d');
+        if (!ctx2) return;
+
         if (faceMatcher && resizedDetections.length > 0) {
           try {
             const results = resizedDetections.map((d: any) => faceMatcher.findBestMatch(d.descriptor));
@@ -250,16 +254,24 @@ export default function AdminFaces() {
               const box = resizedDetections[i].detection.box;
               const isKnown = result.label !== 'unknown';
               const label = isKnown ? `✅ ${result.label}` : `❌ Stranger`;
-              
-              setDebugInfo(`Faces: ${detections.length} | Match: ${result.toString()} | Box: ${Math.round(box.x)},${Math.round(box.y)},${Math.round(box.width)},${Math.round(box.height)}`);
+              const color = isKnown ? '#22c55e' : '#ef4444';
 
-              const drawBox = new faceapi.draw.DrawBox(box, {
-                label,
-                boxColor: isKnown ? '#22c55e' : '#ef4444',
-                lineWidth: 3,
-                drawLabelOptions: { fontSize: 18, fontColor: 'white' },
-              });
-              drawBox.draw(overlayRef.current!);
+              setDebugInfo(`Match: ${result.toString()} | Box: ${Math.round(box.x)},${Math.round(box.y)},${Math.round(box.width)},${Math.round(box.height)}`);
+
+              // Draw rectangle
+              ctx2.strokeStyle = color;
+              ctx2.lineWidth = 3;
+              ctx2.strokeRect(box.x, box.y, box.width, box.height);
+
+              // Draw label background
+              ctx2.fillStyle = color;
+              const textWidth = ctx2.measureText(label).width;
+              ctx2.fillRect(box.x, box.y - 24, textWidth + 16, 24);
+
+              // Draw label text
+              ctx2.fillStyle = '#fff';
+              ctx2.font = 'bold 14px Arial, sans-serif';
+              ctx2.fillText(label, box.x + 8, box.y - 7);
 
               if (isKnown) {
                 const now = Date.now();
@@ -278,7 +290,13 @@ export default function AdminFaces() {
             setDebugInfo(`❌ Matcher error: ${matchErr.message}`);
           }
         } else if (resizedDetections.length > 0) {
-          faceapi.draw.drawDetections(overlayRef.current, resizedDetections);
+          // No matcher — just draw detection boxes
+          resizedDetections.forEach((d: any) => {
+            const box = d.detection.box;
+            ctx2.strokeStyle = '#6366f1';
+            ctx2.lineWidth = 2;
+            ctx2.strokeRect(box.x, box.y, box.width, box.height);
+          });
           setStatusMsg(`Phát hiện ${detections.length} khuôn mặt (Chưa có dữ liệu nhận diện)`);
         }
       } catch (err) {
