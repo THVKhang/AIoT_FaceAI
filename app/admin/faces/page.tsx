@@ -15,8 +15,6 @@ const REGISTRATION_POSES = [
   { key: 'center', label: '👤 Nhìn thẳng', instruction: 'Nhìn thẳng vào camera' },
   { key: 'left', label: '👈 Quay trái', instruction: 'Quay đầu sang TRÁI nhẹ' },
   { key: 'right', label: '👉 Quay phải', instruction: 'Quay đầu sang PHẢI nhẹ' },
-  { key: 'up', label: '👆 Ngẩng lên', instruction: 'Ngẩng đầu lên nhẹ' },
-  { key: 'down', label: '👇 Cúi xuống', instruction: 'Cúi đầu xuống nhẹ' },
 ];
 
 // Shared detector options — SSD MobileNet for reliable face detection
