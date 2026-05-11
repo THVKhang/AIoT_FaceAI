@@ -242,38 +242,44 @@ export default function AdminFaces() {
         const faceMatcher = labeledDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledDescriptors, 0.6) : null;
 
         setDebugInfo(`Faces: ${detections.length} | Refs: ${labeledDescriptors.length} | Canvas: ${overlayRef.current.width}x${overlayRef.current.height}`);
-        if (detections.length > 0) {
-          console.log(`Detected ${detections.length} face(s). Matcher has ${labeledDescriptors.length} reference(s).`);
-        }
 
-        if (faceMatcher) {
-          const results = resizedDetections.map((d: any) => faceMatcher.findBestMatch(d.descriptor));
-          results.forEach((result: any, i: number) => {
-            const box = resizedDetections[i].detection.box;
-            const isKnown = result.label !== 'unknown';
-            const drawBox = new faceapi.draw.DrawBox(box, {
-              label: isKnown ? `✅ ${result.label}` : `❌ Stranger`,
-              boxColor: isKnown ? '#22c55e' : '#ef4444',
-            });
-            drawBox.draw(overlayRef.current!);
+        if (faceMatcher && resizedDetections.length > 0) {
+          try {
+            const results = resizedDetections.map((d: any) => faceMatcher.findBestMatch(d.descriptor));
+            results.forEach((result: any, i: number) => {
+              const box = resizedDetections[i].detection.box;
+              const isKnown = result.label !== 'unknown';
+              const label = isKnown ? `✅ ${result.label}` : `❌ Stranger`;
+              
+              setDebugInfo(`Faces: ${detections.length} | Match: ${result.toString()} | Box: ${Math.round(box.x)},${Math.round(box.y)},${Math.round(box.width)},${Math.round(box.height)}`);
 
-            if (isKnown) {
-              const now = Date.now();
-              if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
-                lastDoorCommandRef.current = now;
-                sendDoorCommand('1');
-                toast.success(`Đã nhận diện: ${result.label} — Mở Cửa!`);
+              const drawBox = new faceapi.draw.DrawBox(box, {
+                label,
+                boxColor: isKnown ? '#22c55e' : '#ef4444',
+                lineWidth: 3,
+                drawLabelOptions: { fontSize: 18, fontColor: 'white' },
+              });
+              drawBox.draw(overlayRef.current!);
+
+              if (isKnown) {
+                const now = Date.now();
+                if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
+                  lastDoorCommandRef.current = now;
+                  sendDoorCommand('1');
+                  toast.success(`Đã nhận diện: ${result.label} — Mở Cửa!`);
+                }
+                setStatusMsg(`✅ Hợp lệ: ${result.label}`);
+              } else {
+                setStatusMsg(`❌ Khuôn mặt lạ — Không có quyền truy cập`);
               }
-              setStatusMsg(`✅ Hợp lệ: ${result.label}`);
-            } else {
-              setStatusMsg(`❌ Khuôn mặt lạ — Không có quyền truy cập`);
-            }
-          });
-        } else {
-          faceapi.draw.drawDetections(overlayRef.current, resizedDetections);
-          if (detections.length > 0) {
-            setStatusMsg(`Phát hiện ${detections.length} khuôn mặt (Chưa có dữ liệu nhận diện)`);
+            });
+          } catch (matchErr: any) {
+            console.error('Matcher/Draw error:', matchErr);
+            setDebugInfo(`❌ Matcher error: ${matchErr.message}`);
           }
+        } else if (resizedDetections.length > 0) {
+          faceapi.draw.drawDetections(overlayRef.current, resizedDetections);
+          setStatusMsg(`Phát hiện ${detections.length} khuôn mặt (Chưa có dữ liệu nhận diện)`);
         }
       } catch (err) {
         console.error('Detection error:', err);
