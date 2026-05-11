@@ -265,7 +265,19 @@ export default function AdminFaces() {
 
           if (faceMatcher && resizedDetections.length > 0) {
             trace += ` | MatchStart`;
-            const results = resizedDetections.map((d: any) => faceMatcher.findBestMatch(d.descriptor));
+            
+            // Check descriptor length to debug euclideanDistance crash
+            const descLen = resizedDetections[0]?.descriptor?.length || 'undef';
+            const refLen = faceMatcher.labeledDescriptors[0]?.descriptors[0]?.length || 'undef';
+            trace += ` | D:${descLen} R:${refLen}`;
+
+            const results = resizedDetections.map((d: any) => {
+              if (d.descriptor && d.descriptor.length === 128) {
+                return faceMatcher.findBestMatch(d.descriptor);
+              } else {
+                throw new Error(`Invalid camera descriptor length: ${d.descriptor?.length}`);
+              }
+            });
             trace += ` | MatchDone:${results.length}`;
 
             results.forEach((result: any, i: number) => {
