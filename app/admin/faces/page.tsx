@@ -174,7 +174,7 @@ export default function AdminFaces() {
 
   const stopWebcam = useCallback(() => {
     if (detectionInterval.current) {
-      clearInterval(detectionInterval.current);
+      clearTimeout(detectionInterval.current);
       detectionInterval.current = null;
     }
     if (streamRef.current) {
@@ -207,65 +207,81 @@ export default function AdminFaces() {
     overlayRef.current.width = displaySize.width;
     overlayRef.current.height = displaySize.height;
     faceapi.matchDimensions(overlayRef.current, displaySize);
+    console.log('Detection loop started. Canvas:', displaySize.width, 'x', displaySize.height);
 
-    detectionInterval.current = setInterval(async () => {
+    // Use recursive setTimeout instead of setInterval to prevent overlapping
+    const runDetection = async () => {
       if (!videoRef.current || !overlayRef.current) return;
 
-      const detections = await faceapi.detectAllFaces(
-        videoRef.current,
-        new faceapi.SsdMobilenetv1Options(DETECT_OPTIONS)
-      ).withFaceLandmarks().withFaceDescriptors();
+      try {
+        const detections = await faceapi.detectAllFaces(
+          videoRef.current,
+          new faceapi.SsdMobilenetv1Options(DETECT_OPTIONS)
+        ).withFaceLandmarks().withFaceDescriptors();
 
-      const ctx = overlayRef.current.getContext('2d');
-      if (ctx) ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+        const ctx = overlayRef.current.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
 
-      const resizedDetections = faceapi.resizeResults(detections, videoRef.current);
+        const resizedDetections = faceapi.resizeResults(detections, displaySize);
 
-      // Rebuild FaceMatcher from latest faces every cycle
-      const currentFaces = facesRef.current;
-      const validFaces = currentFaces.filter((f: any) => f.status === 'Valid' && f.face_vector);
-      const labeledDescriptors = validFaces.map((f: any) => {
-        try {
-          const arr = typeof f.face_vector === 'string' ? JSON.parse(f.face_vector) : f.face_vector;
-          if (arr && arr.length > 0) {
-            return new faceapi.LabeledFaceDescriptors(f.name, [new Float32Array(arr)]);
-          }
-        } catch (e) { console.warn('Invalid vector for', f.name); }
-        return null;
-      }).filter(Boolean) as any[];
-
-      const faceMatcher = labeledDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledDescriptors, 0.5) : null;
-
-      if (faceMatcher) {
-        const results = resizedDetections.map((d: any) => faceMatcher.findBestMatch(d.descriptor));
-        results.forEach((result: any, i: number) => {
-          const box = resizedDetections[i].detection.box;
-          const isKnown = result.label !== 'unknown';
-          const drawBox = new faceapi.draw.DrawBox(box, {
-            label: isKnown ? `✅ ${result.label}` : `❌ Stranger`,
-            boxColor: isKnown ? '#22c55e' : '#ef4444',
-          });
-          drawBox.draw(overlayRef.current!);
-
-          if (isKnown) {
-            const now = Date.now();
-            if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
-              lastDoorCommandRef.current = now;
-              sendDoorCommand('1');
-              toast.success(`Đã nhận diện: ${result.label} — Mở Cửa!`);
+        // Rebuild FaceMatcher from latest faces every cycle
+        const currentFaces = facesRef.current;
+        const validFaces = currentFaces.filter((f: any) => f.status === 'Valid' && f.face_vector);
+        const labeledDescriptors = validFaces.map((f: any) => {
+          try {
+            const arr = typeof f.face_vector === 'string' ? JSON.parse(f.face_vector) : f.face_vector;
+            if (arr && arr.length > 0) {
+              return new faceapi.LabeledFaceDescriptors(f.name, [new Float32Array(arr)]);
             }
-            setStatusMsg(`✅ Hợp lệ: ${result.label}`);
-          } else {
-            setStatusMsg(`❌ Khuôn mặt lạ — Không có quyền truy cập`);
-          }
-        });
-      } else {
-        faceapi.draw.drawDetections(overlayRef.current, resizedDetections);
+          } catch (e) { console.warn('Invalid vector for', f.name); }
+          return null;
+        }).filter(Boolean) as any[];
+
+        const faceMatcher = labeledDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledDescriptors, 0.6) : null;
+
         if (detections.length > 0) {
-          setStatusMsg(`Phát hiện ${detections.length} khuôn mặt (Chưa có dữ liệu nhận diện)`);
+          console.log(`Detected ${detections.length} face(s). Matcher has ${labeledDescriptors.length} reference(s).`);
         }
+
+        if (faceMatcher) {
+          const results = resizedDetections.map((d: any) => faceMatcher.findBestMatch(d.descriptor));
+          results.forEach((result: any, i: number) => {
+            const box = resizedDetections[i].detection.box;
+            const isKnown = result.label !== 'unknown';
+            const drawBox = new faceapi.draw.DrawBox(box, {
+              label: isKnown ? `✅ ${result.label}` : `❌ Stranger`,
+              boxColor: isKnown ? '#22c55e' : '#ef4444',
+            });
+            drawBox.draw(overlayRef.current!);
+
+            if (isKnown) {
+              const now = Date.now();
+              if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
+                lastDoorCommandRef.current = now;
+                sendDoorCommand('1');
+                toast.success(`Đã nhận diện: ${result.label} — Mở Cửa!`);
+              }
+              setStatusMsg(`✅ Hợp lệ: ${result.label}`);
+            } else {
+              setStatusMsg(`❌ Khuôn mặt lạ — Không có quyền truy cập`);
+            }
+          });
+        } else {
+          faceapi.draw.drawDetections(overlayRef.current, resizedDetections);
+          if (detections.length > 0) {
+            setStatusMsg(`Phát hiện ${detections.length} khuôn mặt (Chưa có dữ liệu nhận diện)`);
+          }
+        }
+      } catch (err) {
+        console.error('Detection error:', err);
       }
-    }, 500);
+
+      // Schedule next detection (wait for current one to finish)
+      detectionInterval.current = setTimeout(runDetection, 300) as any;
+    };
+
+    // Start first detection
+    detectionInterval.current = setTimeout(runDetection, 300) as any;
   };
 
   const handleVideoPlay = () => {
