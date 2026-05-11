@@ -19,8 +19,8 @@ const REGISTRATION_POSES = [
   { key: 'down', label: '👇 Cúi xuống', instruction: 'Cúi đầu xuống nhẹ' },
 ];
 
-// Shared detector options — lower threshold for better webcam detection
-const DETECT_OPTIONS = { inputSize: 320, scoreThreshold: 0.3 };
+// Shared detector options — SSD MobileNet for reliable face detection
+const DETECT_OPTIONS = { minConfidence: 0.3 };
 
 export default function AdminFaces() {
   const [faces, setFaces] = useState<any[]>([]);
@@ -75,8 +75,8 @@ export default function AdminFaces() {
   const loadFaceModels = async (retryCount = 0) => {
     if (!faceapi) return;
     try {
-      setModelLoadStage('Loading TinyFaceDetector...');
-      await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+      setModelLoadStage('Loading FaceDetector (SSD MobileNet)...');
+      await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
 
       setModelLoadStage('Loading FaceLandmark68...');
       await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
@@ -215,7 +215,7 @@ export default function AdminFaces() {
 
       const detections = await faceapi.detectAllFaces(
         videoRef.current,
-        new faceapi.TinyFaceDetectorOptions(DETECT_OPTIONS)
+        new faceapi.SsdMobilenetv1Options(DETECT_OPTIONS)
       ).withFaceLandmarks().withFaceDescriptors();
 
       const ctx = overlayRef.current.getContext('2d');
@@ -399,7 +399,7 @@ export default function AdminFaces() {
 
     const detection = await faceapi.detectSingleFace(
       videoRef.current,
-      new faceapi.TinyFaceDetectorOptions(DETECT_OPTIONS)
+      new faceapi.SsdMobilenetv1Options(DETECT_OPTIONS)
     ).withFaceLandmarks().withFaceDescriptor();
 
     if (!detection) {
