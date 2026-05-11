@@ -200,7 +200,12 @@ export default function AdminFaces() {
     if (!modelsLoaded || !videoRef.current || !overlayRef.current || !faceapi) return;
     if (detectionInterval.current) return; // Already running
 
-    faceapi.matchDimensions(overlayRef.current, videoRef.current);
+    // Use actual video resolution for canvas dimensions
+    const video = videoRef.current;
+    const displaySize = { width: video.videoWidth || 640, height: video.videoHeight || 480 };
+    overlayRef.current.width = displaySize.width;
+    overlayRef.current.height = displaySize.height;
+    faceapi.matchDimensions(overlayRef.current, displaySize);
 
     detectionInterval.current = setInterval(async () => {
       if (!videoRef.current || !overlayRef.current) return;
@@ -598,6 +603,8 @@ export default function AdminFaces() {
                 playsInline
                 muted
                 onPlay={handleVideoPlay}
+                width={640}
+                height={480}
                 style={{ width: '100%', height: 'auto', transform: 'scaleX(-1)', display: 'block', borderRadius: 8 }}
               />
               <canvas 
