@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { pool } from '../../../lib/db';
+import { requireAdmin } from '../../../lib/requireAdmin';
 
 export async function PUT(req) {
   try {
+    // Only admin can classify faces
+    const auth = await requireAdmin(req);
+    if (!auth.ok) return auth.response;
+
     const { id, status, name } = await req.json();
 
     if (!id || !status) {

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import AppShell from '../../components/AppShell';
 import { toast } from 'sonner';
 
-let faceapi: any;
+
 
 const STREAM_URL = process.env.NEXT_PUBLIC_STREAM_URL || 'http://localhost:5001';
 
@@ -17,8 +17,7 @@ const REGISTRATION_POSES = [
   { key: 'right', label: '👉 Quay phải', instruction: 'Quay đầu sang PHẢI nhẹ' },
 ];
 
-// Shared detector options — SSD MobileNet for reliable face detection
-const DETECT_OPTIONS = { minConfidence: 0.3 };
+const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 
 export default function AdminFaces() {
   const [faces, setFaces] = useState<any[]>([]);
@@ -29,7 +28,7 @@ export default function AdminFaces() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
-  const [modelsLoaded, setModelsLoaded] = useState(false);
+
   const [recognizing, setRecognizing] = useState(false);
 
   // Multi-angle registration state
@@ -50,54 +49,9 @@ export default function AdminFaces() {
   // Keep facesRef in sync with faces state so detection interval always has latest data
   useEffect(() => { facesRef.current = faces; }, [faces]);
 
-  const [modelLoadStage, setModelLoadStage] = useState('');
-
   useEffect(() => { 
     fetchFaces();
-    initFaceApi();
   }, []);
-
-  const initFaceApi = async () => {
-    setModelLoadStage('Importing face-api library...');
-    try {
-      const api = await import('@vladmandic/face-api');
-      faceapi = api;
-      setModelLoadStage('Library loaded. Loading AI models...');
-      await loadFaceModels();
-    } catch (e) {
-      console.error("Lỗi import face-api:", e);
-      setModelLoadStage('❌ Lỗi import thư viện AI');
-      setStatusMsg('❌ Không thể tải thư viện AI. Hãy refresh trang (Ctrl+Shift+R).');
-    }
-  };
-
-  const loadFaceModels = async (retryCount = 0) => {
-    if (!faceapi) return;
-    try {
-      setModelLoadStage('Loading FaceDetector (SSD MobileNet)...');
-      await faceapi.nets.ssdMobilenetv1.loadFromUri('/models');
-
-      setModelLoadStage('Loading FaceLandmark68...');
-      await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-
-      setModelLoadStage('Loading FaceRecognition (~6MB)...');
-      await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-
-      setModelsLoaded(true);
-      setModelLoadStage('');
-      setStatusMsg('✅ AI Model sẵn sàng — Hướng camera vào khuôn mặt');
-      console.log('Face-API models loaded successfully');
-    } catch (e) {
-      console.error('Lỗi tải model Face-API:', e);
-      if (retryCount < 2) {
-        setModelLoadStage(`Retry ${retryCount + 1}/2 — Loading models...`);
-        setTimeout(() => loadFaceModels(retryCount + 1), 2000);
-      } else {
-        setModelLoadStage('❌ Lỗi tải model');
-        setStatusMsg('❌ Không thể tải AI Model sau 3 lần thử. Refresh trang (Ctrl+Shift+R).');
-      }
-    }
-  };
 
   // Cleanup webcam on unmount
   useEffect(() => {
@@ -191,15 +145,15 @@ export default function AdminFaces() {
     }
   }, []);
 
-  // Auto-start detection when models finish loading AFTER webcam is already playing
+  // Auto-start detection when webcam is already playing
   useEffect(() => {
-    if (modelsLoaded && cameraMode === 'webcam' && !detectionInterval.current) {
+    if (cameraMode === 'webcam' && !detectionInterval.current) {
       startDetectionLoop();
     }
-  }, [modelsLoaded, cameraMode]);
+  }, [cameraMode]);
 
   const startDetectionLoop = () => {
-    if (!modelsLoaded || !videoRef.current || !overlayRef.current || !faceapi) return;
+    if (!videoRef.current || !overlayRef.current) return;
     if (detectionInterval.current) return; // Already running
 
     // Use actual video resolution for canvas dimensions
@@ -207,146 +161,104 @@ export default function AdminFaces() {
     const displaySize = { width: video.videoWidth || 640, height: video.videoHeight || 480 };
     overlayRef.current.width = displaySize.width;
     overlayRef.current.height = displaySize.height;
-    faceapi.matchDimensions(overlayRef.current, displaySize);
-    console.log('Detection loop started. Canvas:', displaySize.width, 'x', displaySize.height);
-    setDebugInfo(`Loop started: ${displaySize.width}x${displaySize.height}`);
+    console.log('FastAPI Detection loop started. Canvas:', displaySize.width, 'x', displaySize.height);
+    setDebugInfo(`FastAPI Loop started: ${displaySize.width}x${displaySize.height}`);
 
-    // Use recursive setTimeout instead of setInterval to prevent overlapping
     const runDetection = async () => {
       if (!videoRef.current || !overlayRef.current) return;
 
       try {
-        const detections = await faceapi.detectAllFaces(
-          videoRef.current,
-          new faceapi.SsdMobilenetv1Options(DETECT_OPTIONS)
-        ).withFaceLandmarks().withFaceDescriptors();
+        const imageBlob = captureWebcamFrame();
+        if (!imageBlob) throw new Error("Could not capture frame");
+        
+        const base64data = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(imageBlob);
+        });
 
-        const ctx = overlayRef.current.getContext('2d');
-        if (ctx) ctx.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
+        const ctx2 = overlayRef.current.getContext('2d');
+        if (!ctx2) return;
+        
+        let trace = `Send...`;
+        setDebugInfo(trace);
 
-        const resizedDetections = faceapi.resizeResults(detections, displaySize);
+        const res = await fetch(`${FASTAPI_URL}/api/recognize`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64data })
+        });
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        
+        ctx2.clearRect(0, 0, overlayRef.current.width, overlayRef.current.height);
 
-        // Rebuild FaceMatcher from latest faces every cycle
-        const currentFaces = facesRef.current;
-        const validFaces = currentFaces.filter((f: any) => f.status === 'Valid' && f.face_vector);
-        const labeledDescriptors = validFaces.map((f: any) => {
-          try {
-            let arr = typeof f.face_vector === 'string' ? JSON.parse(f.face_vector) : f.face_vector;
-            
-            // Legacy data fix: Float32Array stringified directly turns into {"0": 0.1, "1": 0.2, ...}
-            if (arr && typeof arr === 'object' && !Array.isArray(arr)) {
-              arr = Object.values(arr);
-            }
-            
-            // face-api recognition descriptors are exactly 128 dimensions
-            if (arr && Array.isArray(arr) && arr.length === 128) {
-              return new faceapi.LabeledFaceDescriptors(f.name, [new Float32Array(arr)]);
-            } else {
-              console.warn(`Skipping face ref ${f.name} - Invalid dimensions: ${arr?.length}`);
-            }
-          } catch (e) { console.warn('Invalid vector parse for', f.name); }
-          return null;
-        }).filter(Boolean) as any[];
-
-        let trace = `F:${detections.length} R:${labeledDescriptors.length}`;
-        setDebugInfo(`${trace} | Computing...`);
-
-        try {
-          const faceMatcher = labeledDescriptors.length > 0 ? new faceapi.FaceMatcher(labeledDescriptors, 0.6) : null;
-          trace += ` | M:${faceMatcher ? 'OK' : 'NULL'}`;
-
-          const ctx2 = overlayRef.current.getContext('2d');
-          trace += ` | Ctx:${ctx2 ? 'OK' : 'NULL'}`;
+        if (data.success && data.faces) {
+          trace += ` | Rcv: ${data.faces.length} faces`;
           
-          if (!ctx2) {
-            setDebugInfo(`${trace} | Aborting: No Canvas 2D`);
-            return;
+          if (data.faces.length === 0) {
+             setDebugInfo(`${trace} | No faces`);
           }
 
-          if (faceMatcher && resizedDetections.length > 0) {
-            trace += ` | MatchStart`;
-            
-            // Check descriptor length to debug euclideanDistance crash
-            const descLen = resizedDetections[0]?.descriptor?.length || 'undef';
-            const refLen = faceMatcher.labeledDescriptors[0]?.descriptors[0]?.length || 'undef';
-            trace += ` | D:${descLen} R:${refLen}`;
+          data.faces.forEach((result: any) => {
+            const box = result.box;
+            const isKnown = result.is_known;
+            const label = isKnown ? `✅ ${result.name}` : `❌ Stranger`;
+            const color = isKnown ? '#22c55e' : '#ef4444';
 
-            const results = resizedDetections.map((d: any) => {
-              if (d.descriptor && d.descriptor.length === 128) {
-                return faceMatcher.findBestMatch(d.descriptor);
-              } else {
-                throw new Error(`Invalid camera descriptor length: ${d.descriptor?.length}`);
+            // Draw rectangle
+            ctx2.strokeStyle = color;
+            ctx2.lineWidth = 3;
+            ctx2.strokeRect(box.x, box.y, box.width, box.height);
+
+            // Draw label background
+            ctx2.fillStyle = color;
+            const textWidth = ctx2.measureText(label).width;
+            ctx2.fillRect(box.x, box.y - 24, textWidth + 16, 24);
+
+            // Draw label text
+            ctx2.fillStyle = '#fff';
+            ctx2.font = 'bold 14px Arial, sans-serif';
+            ctx2.fillText(label, box.x + 8, box.y - 7);
+
+            if (isKnown) {
+              const now = Date.now();
+              // Prevent spamming commands
+              if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
+                lastDoorCommandRef.current = now;
+                sendCommand('button-door', '1'); // Open Door
+                sendCommand('faceai-result', `${result.name}:${(1 - result.distance).toFixed(2)}`); // Log success
+                toast.success(`Đã nhận diện: ${result.name} — Cửa đang mở!`);
               }
-            });
-            trace += ` | MatchDone:${results.length}`;
-
-            results.forEach((result: any, i: number) => {
-              const box = resizedDetections[i].detection.box;
-              const isKnown = result.label !== 'unknown';
-              const label = isKnown ? `✅ ${result.label}` : `❌ Stranger`;
-              const color = isKnown ? '#22c55e' : '#ef4444';
-
-              trace += ` | Box:${Math.round(box.x)}`;
-
-              // Draw rectangle
-              ctx2.strokeStyle = color;
-              ctx2.lineWidth = 3;
-              ctx2.strokeRect(box.x, box.y, box.width, box.height);
-
-              // Draw label background
-              ctx2.fillStyle = color;
-              const textWidth = ctx2.measureText(label).width;
-              ctx2.fillRect(box.x, box.y - 24, textWidth + 16, 24);
-
-              // Draw label text
-              ctx2.fillStyle = '#fff';
-              ctx2.font = 'bold 14px Arial, sans-serif';
-              ctx2.fillText(label, box.x + 8, box.y - 7);
-
-              trace += ` | DrawDone`;
-
-              if (isKnown) {
-                const now = Date.now();
-                if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
-                  lastDoorCommandRef.current = now;
-                  sendDoorCommand('1');
-                  toast.success(`Đã nhận diện: ${result.label} — Mở Cửa!`);
-                }
-                setStatusMsg(`✅ Hợp lệ: ${result.label}`);
-              } else {
-                setStatusMsg(`❌ Khuôn mặt lạ — Không có quyền truy cập`);
+              setStatusMsg(`✅ Hợp lệ: ${result.name} (${result.distance.toFixed(2)})`);
+            } else {
+              const now = Date.now();
+              // Explicitly lock door if stranger is detected
+              if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
+                lastDoorCommandRef.current = now;
+                sendCommand('button-door', '0'); // Close Door
+                sendCommand('faceai-result', `Unknown:${(1 - result.distance).toFixed(2)}`); // Log denied
+                toast.error(`❌ Khuôn mặt lạ — Đã khóa cửa!`);
               }
-            });
-            
-            setDebugInfo(`${trace} | All Done`);
-          } else if (resizedDetections.length > 0) {
-            trace += ` | DrawRaw`;
-            resizedDetections.forEach((d: any) => {
-              const box = d.detection.box;
-              ctx2.strokeStyle = '#6366f1';
-              ctx2.lineWidth = 2;
-              ctx2.strokeRect(box.x, box.y, box.width, box.height);
-            });
-            setStatusMsg(`Phát hiện ${detections.length} khuôn mặt (Chưa có dữ liệu nhận diện)`);
-            setDebugInfo(`${trace} | Done`);
-          } else {
-            setDebugInfo(`${trace} | No faces`);
+              setStatusMsg(`❌ Khuôn mặt lạ — Không có quyền truy cập`);
+            }
+          });
+          
+          if (data.faces.length > 0) {
+             setDebugInfo(`${trace} | Drawn`);
           }
-        } catch (innerErr: any) {
-          console.error('Inner detection error:', innerErr);
-          setDebugInfo(`${trace} | ❌ ERR: ${innerErr.message}`);
         }
-
-      } catch (err) {
+      } catch (err: any) {
         console.error('Detection error:', err);
+        setDebugInfo(`❌ API ERR: ${err.message}`);
       }
 
-      // Schedule next detection (wait for current one to finish)
+      // 300ms is ~3fps, perfect for FastAPI without overwhelming
       detectionInterval.current = setTimeout(runDetection, 300) as any;
     };
 
-    // Start first detection
-    detectionInterval.current = setTimeout(runDetection, 300) as any;
+    detectionInterval.current = setTimeout(runDetection, 100) as any;
   };
 
   const handleVideoPlay = () => {
@@ -361,7 +273,7 @@ export default function AdminFaces() {
       });
       streamRef.current = mediaStream;
       setCameraMode('webcam');
-      setStatusMsg(modelsLoaded ? '✅ Webcam sẵn sàng' : 'Webcam hoạt động');
+      setStatusMsg('✅ Webcam sẵn sàng');
     } catch (err) {
       console.error('Webcam error:', err);
       setStatusMsg('Không thể truy cập webcam. Hãy cấp quyền camera.');
@@ -442,10 +354,6 @@ export default function AdminFaces() {
       toast.error('Hãy bật camera webcam trước khi đăng ký');
       return;
     }
-    if (!modelsLoaded) {
-      toast.error('AI Model chưa tải xong, vui lòng chờ...');
-      return;
-    }
     // Prompt for name first
     const name = window.prompt('Nhập tên người dùng cần đăng ký:');
     if (!name || !name.trim()) {
@@ -474,30 +382,47 @@ export default function AdminFaces() {
   }, [isRegistering, regCountdown]);
 
   const captureRegistrationPose = async () => {
-    if (!videoRef.current || !faceapi) return;
+    if (!videoRef.current) return;
 
-    const detection = await faceapi.detectSingleFace(
-      videoRef.current,
-      new faceapi.SsdMobilenetv1Options(DETECT_OPTIONS)
-    ).withFaceLandmarks().withFaceDescriptor();
+    try {
+      const imageBlob = captureWebcamFrame();
+      if (!imageBlob) throw new Error("Could not capture frame");
+      
+      const base64data = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(imageBlob);
+      });
 
-    if (!detection) {
-      toast.error(`Không thấy khuôn mặt — ${REGISTRATION_POSES[regStep].label}. Thử lại!`);
-      setRegCountdown(4); // Retry this pose
-      return;
-    }
+      const res = await fetch(`${FASTAPI_URL}/api/extract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64data })
+      });
+      
+      const data = await res.json();
+      if (!data.success) {
+        toast.error(`${data.error} — ${REGISTRATION_POSES[regStep].label}. Thử lại!`);
+        setRegCountdown(4); // Retry this pose
+        return;
+      }
 
-    const newDescriptors = [...regDescriptors, detection.descriptor];
-    setRegDescriptors(newDescriptors);
-    toast.success(`✅ ${REGISTRATION_POSES[regStep].label} — OK!`);
+      const newDescriptors = [...regDescriptors, new Float32Array(data.vector)];
+      setRegDescriptors(newDescriptors);
+      toast.success(`✅ ${REGISTRATION_POSES[regStep].label} — OK!`);
 
-    if (regStep + 1 < REGISTRATION_POSES.length) {
-      // Move to next pose
-      setRegStep(regStep + 1);
+      if (regStep + 1 < REGISTRATION_POSES.length) {
+        // Move to next pose
+        setRegStep(regStep + 1);
+        setRegCountdown(4);
+      } else {
+        // All poses captured — compute average descriptor and save
+        await finalizeRegistration(newDescriptors);
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Lỗi trích xuất khuôn mặt. Hãy thử lại.");
       setRegCountdown(4);
-    } else {
-      // All poses captured — compute average descriptor and save
-      await finalizeRegistration(newDescriptors);
     }
   };
 
@@ -625,17 +550,17 @@ export default function AdminFaces() {
     }
   };
 
-  const sendDoorCommand = async (value: string) => {
+  const sendCommand = async (feed_key: string, value: string) => {
     if (isSending) return;
     setIsSending(true);
     try {
       await fetch('/api/commands', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feed_key: 'button-door', value })
+        body: JSON.stringify({ feed_key, value })
       });
     } catch (e) {
       console.error(e);
-      alert('Lỗi gửi lệnh cửa.');
+      alert('Lỗi gửi lệnh.');
     } finally {
       setIsSending(false);
     }
@@ -666,13 +591,7 @@ export default function AdminFaces() {
           <span className="faceai-monitor-meta">{modeLabel}</span>
         </div>
 
-        {/* Model loading banner — persistent, independent from status bar */}
-        {modelLoadStage && (
-          <div className="faceai-model-banner">
-            <div className="faceai-model-spinner" />
-            <span>{modelLoadStage}</span>
-          </div>
-        )}
+
 
         <div className="faceai-monitor-viewport">
           {cameraMode === 'stream' ? (
@@ -784,10 +703,10 @@ export default function AdminFaces() {
             <button className="faceai-btn faceai-btn-success" disabled={isSending || isRegistering} onClick={handleRegisterFace}>
               + Đăng ký
             </button>
-            <button className="faceai-btn faceai-btn-ghost" disabled={isSending} onClick={() => sendDoorCommand('1')}>
+            <button className="faceai-btn faceai-btn-ghost" disabled={isSending} onClick={() => sendCommand('button-door', '1')}>
               🔓 Mở
             </button>
-            <button className="faceai-btn faceai-btn-ghost" disabled={isSending} onClick={() => sendDoorCommand('0')}>
+            <button className="faceai-btn faceai-btn-ghost" disabled={isSending} onClick={() => sendCommand('button-door', '0')}>
               🔒 Đóng
             </button>
             <button className="faceai-btn faceai-btn-ghost" onClick={fetchFaces} style={{ marginLeft: 'auto' }}>

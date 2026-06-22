@@ -48,6 +48,8 @@ FEED_CMD = "faceai-cmd"
 API_BASE_URL = os.getenv("FACE_API_URL", "https://hcmutfaceai.vercel.app")
 API_UPLOAD = f"{API_BASE_URL}/api/faces/upload"
 API_IDENTIFY = f"{API_BASE_URL}/api/faces/identify"
+FACE_API_SECRET = os.getenv("FACE_API_SECRET", "")
+API_HEADERS = {"x-face-api-key": FACE_API_SECRET} if FACE_API_SECRET else {}
 
 CAMERA_URL = os.getenv("CAMERA_URL", "0")
 if CAMERA_URL.isdigit():
@@ -382,6 +384,7 @@ def process_registration(frame, face_rect):
                 API_UPLOAD,
                 data={'vectors': json.dumps(scan_vectors)},
                 files={'file': ('face.jpg', buffer.tobytes(), 'image/jpeg')},
+                headers=API_HEADERS,
                 timeout=15
             )
             if res.status_code == 200:
@@ -416,7 +419,7 @@ def process_identify(frame, face_rect):
         return
     
     try:
-        res = requests.post(API_IDENTIFY, json={'vector': vector}, timeout=10)
+        res = requests.post(API_IDENTIFY, json={'vector': vector}, headers=API_HEADERS, timeout=10)
         data = res.json()
         if res.status_code == 200 and data.get("success"):
             user = data["user"]

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { pool } from '../../../lib/db';
+import { requireFaceApiAuth } from '../../../lib/faceApiAuth';
+
 
 function euclideanDistance(vecA, vecB) {
   let sum = 0;
@@ -43,6 +45,10 @@ function matchVectors(probeVector, storedData) {
 
 export async function POST(req) {
   try {
+    // Verify API key or session
+    const auth = await requireFaceApiAuth(req);
+    if (!auth.ok) return auth.response;
+
     let payload;
     try {
       payload = await req.json();

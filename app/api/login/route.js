@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
 import { generateSessionToken, verifyPassword } from "../../lib/auth";
+import { loginLimiter } from "../../lib/rateLimit";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
+    // Rate limit: 10 requests per minute per IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const limit = loginLimiter.check(ip);
+    if (!limit.ok) return limit.response;
+
+
     const body = await request.json();
     const username = String(body?.username || "").trim();
     const password = String(body?.password || "").trim();

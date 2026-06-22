@@ -6,11 +6,18 @@ import {
   hashPassword,
   validatePasswordPolicy,
 } from "../../lib/auth";
+import { registerLimiter } from "../../lib/rateLimit";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
+    // Rate limit: 5 requests per minute per IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const limit = registerLimiter.check(ip);
+    if (!limit.ok) return limit.response;
+
+
     const body = await request.json();
     const username = String(body?.username || "").trim();
     const email = String(body?.email || "").trim().toLowerCase();

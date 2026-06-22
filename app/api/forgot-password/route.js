@@ -4,11 +4,18 @@ import {
   FORGOT_PASSWORD_GENERIC_RESPONSE,
   normalizeForgotPasswordIdentity,
 } from "../../lib/passwordReset/forgotPasswordService";
+import { forgotPasswordLimiter } from "../../lib/rateLimit";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
+    // Rate limit: 5 requests per minute per IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const limit = forgotPasswordLimiter.check(ip);
+    if (!limit.ok) return limit.response;
+
+
     const body = await request.json();
     const accountIdentifier = normalizeForgotPasswordIdentity(body);
     await createForgotPasswordRequest(accountIdentifier);

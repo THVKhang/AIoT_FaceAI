@@ -18,6 +18,7 @@ eggs/
 lib/
 !app/lib/
 !app/lib/*.js
+!__tests__/lib/
 lib64/
 parts/
 sdist/

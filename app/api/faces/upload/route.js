@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { pool } from '../../../lib/db';
+import { requireFaceApiAuth } from '../../../lib/faceApiAuth';
 import { promises as fs } from 'fs';
 import path from 'path';
 
 export async function POST(req) {
   try {
+    // Verify API key or session
+    const auth = await requireFaceApiAuth(req);
+    if (!auth.ok) return auth.response;
+
+
     const formData = await req.formData();
     const file = formData.get('file');
     const vectorStr = formData.get('vector');     // single vector (legacy)

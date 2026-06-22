@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "db:init": "node scripts/run-sql-files.js",
-    "db:sql": "node scripts/run-sql-files.js"
+    "db:sql": "node scripts/run-sql-files.js",
+    "db:rollback": "node scripts/run-sql-files.js --rollback",
+    "test": "jest --forceExit --detectOpenHandles"
   },
   "dependencies": {
     "@vladmandic/face-api": "^1.7.15",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@types/node": "25.6.0",
     "@types/react": "19.2.14",
+    "jest": "^30.4.2",
     "typescript": "6.0.3"
   }
 }

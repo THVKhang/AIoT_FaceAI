@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server';
 import { pool } from '../../../lib/db';
+import { requireAdmin } from '../../../lib/requireAdmin';
 
 export async function POST(req) {
   try {
+    // Only admin can delete faces
+    const auth = await requireAdmin(req);
+    if (!auth.ok) return auth.response;
+
     const { id } = await req.json();
     
     if (!id) {
