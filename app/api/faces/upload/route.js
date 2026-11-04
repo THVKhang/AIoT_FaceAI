@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { pool } from '../../../lib/db';
 import { requireFaceApiAuth } from '../../../lib/faceApiAuth';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { normalizeVectors } from '../../../lib/faceMatching';
+import { fileToDataUrl } from '../../../lib/faceUpload';
+
+export const runtime = 'nodejs';
 
 export async function POST(req) {
   try {
-    // Verify API key or session
     const auth = await requireFaceApiAuth(req);
     if (!auth.ok) return auth.response;
-
 
     const formData = await req.formData();
     const file = formData.get('file');
@@ -20,39 +20,23 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'Missing file or vector(s)', code: 'MISSING_PARAMS' }, { status: 400 });
     }
 
-    const bytes = await file.arrayBuffer();
-    
-    // Check file size (e.g. max 5MB)
-    if (bytes.byteLength > 5 * 1024 * 1024) {
-      return NextResponse.json({ success: false, error: 'File size exceeds 5MB limit', code: 'PAYLOAD_TOO_LARGE' }, { status: 413 });
+    const image = await fileToDataUrl(file);
+    if (!image.ok) {
+      return NextResponse.json({ success: false, error: image.error, code: image.code }, { status: image.status });
     }
 
-    const buffer = Buffer.from(bytes);
-
-    // Convert image buffer to base64 string for Vercel compatibility
-    const base64Image = buffer.toString('base64');
-    // Ensure we only store legitimate image types
-    const mimeType = file.type?.startsWith('image/') ? file.type : 'image/jpeg';
-    const imageUrl = `data:${mimeType};base64,${base64Image}`;
-    
-    // Support both single vector and multi-angle vectors safely
-    let faceVector;
-    try {
-      if (vectorsStr) {
-        faceVector = JSON.parse(vectorsStr); 
-        if (!Array.isArray(faceVector)) throw new Error('Vectors must be an array');
-      } else {
-        faceVector = JSON.parse(vectorStr);
-        if (!Array.isArray(faceVector)) throw new Error('Vector must be an array');
-      }
-    } catch (parseError) {
-      return NextResponse.json({ success: false, error: 'Invalid vector format. Must be valid JSON array.', code: 'INVALID_JSON' }, { status: 400 });
+    const vectors = normalizeVectors(String(vectorsStr || vectorStr));
+    if (vectors.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid vector format. Must be a JSON array of numbers (or array of arrays).', code: 'INVALID_JSON' },
+        { status: 400 }
+      );
     }
 
     const result = await pool.query(
-      `INSERT INTO face_users (name, face_vector, image_url, status) 
+      `INSERT INTO face_users (name, face_vector, image_url, status)
        VALUES ($1, $2, $3, 'Pending') RETURNING id`,
-      ['Unknown', JSON.stringify(faceVector), imageUrl]
+      ['Unknown', JSON.stringify(vectors.length === 1 ? vectors[0] : vectors), image.imageUrl]
     );
 
     return NextResponse.json({ success: true, id: result.rows[0].id });

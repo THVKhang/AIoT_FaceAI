@@ -1,4 +1,5 @@
 import { getSessionUser } from "./sessionAuth";
+import { safeEqual } from "./http";
 
 /**
  * Verify Face API access.
@@ -24,11 +25,10 @@ export function verifyFaceApiKey(request) {
     };
   }
 
-  const providedKey =
-    request.headers.get("x-face-api-key") ||
-    request.headers.get("X-Face-Api-Key");
+  // Headers.get() is case-insensitive.
+  const providedKey = request.headers.get("x-face-api-key");
 
-  if (providedKey === secret) {
+  if (safeEqual(providedKey, secret)) {
     return { ok: true };
   }
 

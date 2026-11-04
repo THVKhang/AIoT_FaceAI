@@ -1,110 +1,52 @@
-/**
- * Tests for rate limiter logic.
- *
- * Since rateLimit.js uses ES modules (export), we replicate the core logic
- * here for Jest compatibility without needing Babel/ESM transforms.
- */
-
-function createRateLimit({ windowMs = 60000, max = 10 } = {}) {
-  const store = new Map();
-
-  function check(ip) {
-    const now = Date.now();
-    let entry = store.get(ip);
-
-    if (!entry || now > entry.resetAt) {
-      entry = { count: 0, resetAt: now + windowMs };
-      store.set(ip, entry);
-    }
-
-    entry.count += 1;
-
-    if (entry.count > max) {
-      const retryAfterSec = Math.ceil((entry.resetAt - now) / 1000);
-      return {
-        ok: false,
-        remaining: 0,
-        response: {
-          status: 429,
-          body: {
-            success: false,
-            message: `Quá nhiều request. Vui lòng thử lại sau ${retryAfterSec} giây.`,
-          },
-        },
-      };
-    }
-
-    return { ok: true, remaining: max - entry.count };
-  }
-
-  return { check };
-}
+import { createRateLimit } from "../../app/lib/rateLimit";
 
 describe("createRateLimit", () => {
-  it("should allow requests within the limit", () => {
-    const limiter = createRateLimit({ windowMs: 60000, max: 3 });
-
-    const r1 = limiter.check("127.0.0.1");
-    expect(r1.ok).toBe(true);
-    expect(r1.remaining).toBe(2);
-
-    const r2 = limiter.check("127.0.0.1");
-    expect(r2.ok).toBe(true);
-    expect(r2.remaining).toBe(1);
-
-    const r3 = limiter.check("127.0.0.1");
-    expect(r3.ok).toBe(true);
-    expect(r3.remaining).toBe(0);
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
-  it("should block requests exceeding the limit", () => {
-    const limiter = createRateLimit({ windowMs: 60000, max: 2 });
+  it("allows requests within the limit and tracks remaining", () => {
+    const limiter = createRateLimit({ windowMs: 60_000, max: 3 });
+    expect(limiter.check("1.1.1.1")).toMatchObject({ ok: true, remaining: 2 });
+    expect(limiter.check("1.1.1.1")).toMatchObject({ ok: true, remaining: 1 });
+    expect(limiter.check("1.1.1.1")).toMatchObject({ ok: true, remaining: 0 });
+  });
 
-    limiter.check("10.0.0.1");
-    limiter.check("10.0.0.1");
-    const blocked = limiter.check("10.0.0.1");
+  it("blocks requests over the limit with a 429 response", async () => {
+    const limiter = createRateLimit({ windowMs: 60_000, max: 1 });
+    limiter.check("ip");
+    const blocked = limiter.check("ip");
 
     expect(blocked.ok).toBe(false);
-    expect(blocked.remaining).toBe(0);
-    expect(blocked.response).toBeDefined();
     expect(blocked.response.status).toBe(429);
+    expect(blocked.response.headers.get("Retry-After")).toBe("60");
+    const body = await blocked.response.json();
+    expect(body.success).toBe(false);
+    expect(body.message).toContain("Quá nhiều request");
   });
 
-  it("should track different IPs separately", () => {
-    const limiter = createRateLimit({ windowMs: 60000, max: 1 });
-
-    const r1 = limiter.check("192.168.1.1");
-    expect(r1.ok).toBe(true);
-
-    const r2 = limiter.check("192.168.1.2");
-    expect(r2.ok).toBe(true);
-
-    // First IP should now be blocked
-    const r3 = limiter.check("192.168.1.1");
-    expect(r3.ok).toBe(false);
+  it("tracks IPs independently", () => {
+    const limiter = createRateLimit({ windowMs: 60_000, max: 1 });
+    expect(limiter.check("a").ok).toBe(true);
+    expect(limiter.check("b").ok).toBe(true);
+    expect(limiter.check("a").ok).toBe(false);
   });
 
-  it("should return rate limit error message in Vietnamese", () => {
-    const limiter = createRateLimit({ windowMs: 60000, max: 1 });
-    limiter.check("1.2.3.4");
-    const blocked = limiter.check("1.2.3.4");
-
-    expect(blocked.ok).toBe(false);
-    expect(blocked.response.body.success).toBe(false);
-    expect(blocked.response.body.message).toContain("Quá nhiều request");
+  it("limiters do not share state", () => {
+    const one = createRateLimit({ max: 1 });
+    const two = createRateLimit({ max: 1 });
+    expect(one.check("x").ok).toBe(true);
+    expect(two.check("x").ok).toBe(true);
   });
 
-  it("should use default values when no options provided", () => {
-    const limiter = createRateLimit();
+  it("resets after the window expires", () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    const limiter = createRateLimit({ windowMs: 1_000, max: 1 });
+    expect(limiter.check("ip").ok).toBe(true);
+    expect(limiter.check("ip").ok).toBe(false);
 
-    // Should allow at least 10 requests (default max)
-    for (let i = 0; i < 10; i++) {
-      const result = limiter.check("default-test-ip");
-      expect(result.ok).toBe(true);
-    }
-
-    // 11th should be blocked
-    const blocked = limiter.check("default-test-ip");
-    expect(blocked.ok).toBe(false);
+    jest.setSystemTime(new Date("2026-01-01T00:00:01.500Z"));
+    expect(limiter.check("ip").ok).toBe(true);
   });
 });

@@ -83,3 +83,4 @@ export function createRateLimit({ windowMs = 60_000, max = 10 } = {}) {
 export const loginLimiter = createRateLimit({ windowMs: 60_000, max: 10 });
 export const registerLimiter = createRateLimit({ windowMs: 60_000, max: 5 });
 export const forgotPasswordLimiter = createRateLimit({ windowMs: 60_000, max: 5 });
+export const resetPasswordLimiter = createRateLimit({ windowMs: 60_000, max: 5 });

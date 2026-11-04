@@ -1,4 +1,5 @@
 import { requireAuth } from "../../lib/sessionAuth";
+import { requireAdmin } from "../../lib/requireAdmin";
 import {
   buildSettingsError,
   getSettingsData,
@@ -33,7 +34,8 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const auth = await requireAuth(request);
+    // Thresholds are global configuration: only admins may change them.
+    const auth = await requireAdmin(request);
     if (!auth.ok) return auth.response;
 
     const body = await request.json();

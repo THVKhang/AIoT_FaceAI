@@ -19,6 +19,22 @@ const REGISTRATION_POSES = [
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 
+// Distance may be null/Infinity when no faces are registered yet.
+const formatScore = (distance: unknown) =>
+  typeof distance === 'number' && Number.isFinite(distance) ? (1 - distance).toFixed(2) : 'N/A';
+const formatDistance = (distance: unknown) =>
+  typeof distance === 'number' && Number.isFinite(distance) ? distance.toFixed(2) : 'N/A';
+
+async function ensureOk(res: Response, fallback: string) {
+  if (res.ok) return res;
+  let message = fallback;
+  try {
+    const data = await res.json();
+    message = data?.message || data?.error || fallback;
+  } catch { /* ignore non-JSON */ }
+  throw new Error(message);
+}
+
 export default function AdminFaces() {
   const [faces, setFaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +88,7 @@ export default function AdminFaces() {
 
   const fetchFaces = async () => {
     try {
-      const res = await fetch('/api/faces/all');
+      const res = await fetch('/api/faces/all', { cache: 'no-store' });
       const data = await res.json();
       if (data.users) setFaces(data.users);
     } catch (e) { console.error('Fetch error', e); }
@@ -83,10 +99,7 @@ export default function AdminFaces() {
     const promise = fetch('/api/faces/classify', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status, name }),
-    }).then(res => {
-      if (!res.ok) throw new Error('Cập nhật thất bại');
-      return res;
-    });
+    }).then(res => ensureOk(res, 'Cập nhật thất bại'));
 
     toast.promise(promise, {
       loading: 'Đang xử lý...',
@@ -94,7 +107,7 @@ export default function AdminFaces() {
         fetchFaces();
         return 'Cập nhật thành công';
       },
-      error: 'Lỗi hệ thống khi cập nhật'
+      error: (err: Error) => err?.message || 'Lỗi hệ thống khi cập nhật'
     });
   };
 
@@ -103,10 +116,7 @@ export default function AdminFaces() {
     const promise = fetch('/api/faces/delete', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id })
-    }).then(res => {
-      if (!res.ok) throw new Error('Xóa thất bại');
-      return res;
-    });
+    }).then(res => ensureOk(res, 'Xóa thất bại'));
 
     toast.promise(promise, {
       loading: 'Đang xóa...',
@@ -114,7 +124,7 @@ export default function AdminFaces() {
         fetchFaces();
         return 'Đã xóa khuôn mặt khỏi hệ thống';
       },
-      error: 'Lỗi cập nhật / xóa dữ liệu'
+      error: (err: Error) => err?.message || 'Lỗi cập nhật / xóa dữ liệu'
     });
   };
 
@@ -228,17 +238,17 @@ export default function AdminFaces() {
               if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
                 lastDoorCommandRef.current = now;
                 sendCommand('button-door', '1'); // Open Door
-                sendCommand('faceai-result', `${result.name}:${(1 - result.distance).toFixed(2)}`); // Log success
+                sendCommand('faceai-result', `${result.name}:${formatScore(result.distance)}`); // Log success
                 toast.success(`Đã nhận diện: ${result.name} — Cửa đang mở!`);
               }
-              setStatusMsg(`✅ Hợp lệ: ${result.name} (${result.distance.toFixed(2)})`);
+              setStatusMsg(`✅ Hợp lệ: ${result.name} (${formatDistance(result.distance)})`);
             } else {
               const now = Date.now();
               // Explicitly lock door if stranger is detected
               if (!lastDoorCommandRef.current || now - lastDoorCommandRef.current > 10000) {
                 lastDoorCommandRef.current = now;
                 sendCommand('button-door', '0'); // Close Door
-                sendCommand('faceai-result', `Unknown:${(1 - result.distance).toFixed(2)}`); // Log denied
+                sendCommand('faceai-result', `Unknown:${formatScore(result.distance)}`); // Log denied
                 toast.error(`❌ Khuôn mặt lạ — Đã khóa cửa!`);
               }
               setStatusMsg(`❌ Khuôn mặt lạ — Không có quyền truy cập`);
@@ -448,7 +458,9 @@ export default function AdminFaces() {
 
       const formData = new FormData();
       formData.append('file', imageBlob, 'webcam-capture.jpg');
-      formData.append('face_vector', JSON.stringify(Array.from(avgDescriptor)));
+      // Store the averaged descriptor plus every pose: the matcher uses the closest one.
+      const storedVectors = [avgDescriptor, ...descriptors].map(d => Array.from(d));
+      formData.append('face_vector', JSON.stringify(storedVectors));
       formData.append('name', regName || 'Unknown');
 
       const res = await fetch('/api/faces/identify-or-register', {
@@ -458,8 +470,12 @@ export default function AdminFaces() {
       const data = await res.json();
 
       if (data.success) {
-        toast.success(`✅ Đăng ký "${regName}" thành công! (${descriptors.length} góc quay)`);
-        setStatusMsg(`Đã đăng ký: ${regName}`);
+        if (data.status === 'Valid') {
+          toast.success(`✅ Đăng ký "${regName}" thành công! (${descriptors.length} góc quay)`);
+        } else {
+          toast.info(data.message || 'Đã lưu, chờ admin phê duyệt');
+        }
+        setStatusMsg(data.message || `Đã đăng ký: ${regName}`);
         setCapturedImage(URL.createObjectURL(imageBlob));
         setTimeout(fetchFaces, 1000);
       } else {

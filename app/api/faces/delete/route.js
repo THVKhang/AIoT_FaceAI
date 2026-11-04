@@ -2,20 +2,25 @@ import { NextResponse } from 'next/server';
 import { pool } from '../../../lib/db';
 import { requireAdmin } from '../../../lib/requireAdmin';
 
+export const runtime = 'nodejs';
+
 export async function POST(req) {
   try {
-    // Only admin can delete faces
     const auth = await requireAdmin(req);
     if (!auth.ok) return auth.response;
 
-    const { id } = await req.json();
-    
-    if (!id) {
+    const body = await req.json().catch(() => null);
+    const id = Number(body?.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
       return NextResponse.json({ error: 'Missing face ID' }, { status: 400 });
     }
 
-    await pool.query('DELETE FROM face_users WHERE id = $1', [id]);
-    
+    const result = await pool.query('DELETE FROM face_users WHERE id = $1', [id]);
+    if (result.rowCount === 0) {
+      return NextResponse.json({ error: 'Face not found' }, { status: 404 });
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Delete error:', error);

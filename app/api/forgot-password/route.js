@@ -5,13 +5,14 @@ import {
   normalizeForgotPasswordIdentity,
 } from "../../lib/passwordReset/forgotPasswordService";
 import { forgotPasswordLimiter } from "../../lib/rateLimit";
+import { errorDetail, getClientIp } from "../../lib/http";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
     // Rate limit: 5 requests per minute per IP
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ip = getClientIp(request);
     const limit = forgotPasswordLimiter.check(ip);
     if (!limit.ok) return limit.response;
 
@@ -42,7 +43,7 @@ export async function POST(request) {
       {
         success: false,
         message: "Tạo yêu cầu quên mật khẩu thất bại",
-        error: reason,
+        error: errorDetail(error),
       },
       { status: 500 }
     );

@@ -40,6 +40,19 @@ export default function TopNav() {
         const response = await fetch("/api/session", { cache: "no-store" });
         if (!alive) return;
 
+        if (response.status === 401) {
+          // Stale or expired cookie: clear it so middleware lets us reach /login
+          // (otherwise /login would bounce back here in a loop).
+          setSession(null);
+          try {
+            await fetch("/api/logout", { method: "POST" });
+          } catch {
+            // ignore network errors, still go to login
+          }
+          window.location.replace("/login");
+          return;
+        }
+
         if (!response.ok) {
           setSession(null);
           return;
@@ -133,7 +146,10 @@ export default function TopNav() {
           {session?.username && (
             <div className="user-info">
               <span className="user-avatar">{session.username.charAt(0).toUpperCase()}</span>
-              <span className="user-name">{session.username}</span>
+              <span className="user-name">
+                {session.username}
+                {session.role === "admin" ? " (admin)" : ""}
+              </span>
             </div>
           )}
 

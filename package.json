@@ -9,7 +9,8 @@
     "db:init": "node scripts/run-sql-files.js",
     "db:sql": "node scripts/run-sql-files.js",
     "db:rollback": "node scripts/run-sql-files.js --rollback",
-    "test": "jest --forceExit --detectOpenHandles"
+    "test": "jest",
+    "lint:types": "tsc --noEmit"
   },
   "dependencies": {
     "@vladmandic/face-api": "^1.7.15",

@@ -28,16 +28,18 @@ if not DATABASE_URL:
     logger.error("DATABASE_URL not found in .env")
 
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")
+MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD_FASTAPI", "0.6"))
+DESCRIPTOR_LENGTH = 128
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+DEFAULT_ORIGINS = "http://localhost:3000,http://localhost:3001,https://hcmutfaceai.vercel.app"
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("FACEAI_ALLOWED_ORIGINS", DEFAULT_ORIGINS).split(",") if o.strip()]
 
 app = FastAPI(title="Face AI Backend API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "https://hcmutfaceai.vercel.app",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,48 +67,57 @@ except Exception as e:
 cached_faces = []
 cache_lock = threading.Lock()
 
-def fetch_vectors_from_db():
+def parse_stored_vectors(vector_json) -> List[np.ndarray]:
+    """Accept a single 128-D vector, a list of vectors (multi-pose), a dict map or a JSON string."""
+    vector = json.loads(vector_json) if isinstance(vector_json, str) else vector_json
+    if isinstance(vector, dict):
+        vector = list(vector.values())
+    if not isinstance(vector, list) or not vector:
+        return []
+    candidates = vector if isinstance(vector[0], (list, dict)) else [vector]
+    result = []
+    for c in candidates:
+        if isinstance(c, dict):
+            c = list(c.values())
+        if isinstance(c, list) and len(c) == DESCRIPTOR_LENGTH:
+            result.append(np.array(c, dtype=np.float32))
+    return result
+
+
+def load_faces_once():
     global cached_faces
-    while True:
-        try:
-            conn = psycopg2.connect(DATABASE_URL)
-            cursor = conn.cursor()
+    if not DATABASE_URL:
+        return
+    conn = None
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        with conn.cursor() as cursor:
             cursor.execute("SELECT id, name, face_vector FROM face_users WHERE status = 'Valid' AND face_vector IS NOT NULL")
             rows = cursor.fetchall()
-            
-            new_cache = []
-            for row in rows:
-                user_id, name, vector_json = row
-                try:
-                    # Parse JSONB array or stringified array
-                    if isinstance(vector_json, str):
-                        vector = json.loads(vector_json)
-                    else:
-                        vector = vector_json
-                    
-                    # Handle object dict format legacy
-                    if isinstance(vector, dict):
-                        vector = list(vector.values())
-                    
-                    if len(vector) == 128:
-                        new_cache.append({
-                            "id": user_id,
-                            "name": name,
-                            "vector": np.array(vector, dtype=np.float32)
-                        })
-                except Exception as e:
-                    logger.warning(f"Error parsing vector for user {name}: {e}")
-            
-            with cache_lock:
-                cached_faces = new_cache
-                
-            cursor.close()
+
+        new_cache = []
+        for user_id, name, vector_json in rows:
+            try:
+                vectors = parse_stored_vectors(vector_json)
+                if vectors:
+                    new_cache.append({"id": user_id, "name": name, "vectors": vectors})
+            except Exception as e:
+                logger.warning(f"Error parsing vector for user {name}: {e}")
+
+        with cache_lock:
+            cached_faces = new_cache
+        logger.info(f"Loaded {len(new_cache)} valid faces from DB.")
+    except Exception as e:
+        logger.error(f"DB Fetch Error: {e}")
+    finally:
+        if conn is not None:
             conn.close()
-            logger.info(f"Loaded {len(cached_faces)} valid faces from DB.")
-        except Exception as e:
-            logger.error(f"DB Fetch Error: {e}")
-        
-        time.sleep(10) # Refresh every 10 seconds
+
+
+def fetch_vectors_from_db():
+    while True:
+        load_faces_once()
+        time.sleep(10)  # Refresh every 10 seconds
 
 # Start cache thread
 db_thread = threading.Thread(target=fetch_vectors_from_db, daemon=True)
@@ -160,34 +171,48 @@ def extract_faces_from_image(image_bytes):
             
     return results
 
-def find_best_match(vector, threshold=0.6):
+def find_best_match(vector, threshold=MATCH_THRESHOLD):
+    """Returns (name, distance or None, is_known). distance is None when nothing is registered."""
     best_name = "Unknown"
     best_distance = float('inf')
-    
+
     with cache_lock:
         local_cache = list(cached_faces)
-        
+
     for f in local_cache:
-        # Euclidean distance
-        dist = np.linalg.norm(vector - f["vector"])
-        if dist < best_distance:
-            best_distance = float(dist)
-            best_name = f["name"]
-            
+        for stored in f["vectors"]:
+            dist = float(np.linalg.norm(vector - stored))
+            if dist < best_distance:
+                best_distance = dist
+                best_name = f["name"]
+
+    if not np.isfinite(best_distance):
+        # inf is not valid JSON, so report "no candidate" explicitly
+        return "Unknown", None, False
     if best_distance < threshold:
         return best_name, best_distance, True
-    return best_name, best_distance, False
+    return "Unknown", best_distance, False
+
+
+def decode_image(img_str: str) -> bytes:
+    if img_str.startswith('data:image'):
+        img_str = img_str.split(',', 1)[1]
+    try:
+        img_bytes = base64.b64decode(img_str, validate=False)
+    except Exception:
+        raise ValueError("Invalid base64 image")
+    if not img_bytes:
+        raise ValueError("Empty image")
+    if len(img_bytes) > MAX_IMAGE_BYTES:
+        raise ValueError("Image exceeds 5MB limit")
+    return img_bytes
 
 @app.post("/api/recognize")
 async def recognize_face(req: ImageRequest):
     try:
-        img_str = req.image
-        if img_str.startswith('data:image'):
-            img_str = img_str.split(',')[1]
-            
-        img_bytes = base64.b64decode(img_str)
+        img_bytes = decode_image(req.image)
         detected_faces = extract_faces_from_image(img_bytes)
-        
+
         response_faces = []
         for d in detected_faces:
             name, dist, is_known = find_best_match(d["vector"])
@@ -207,13 +232,9 @@ async def recognize_face(req: ImageRequest):
 async def extract_vector(req: ImageRequest):
     """ Used for registering new faces from Web """
     try:
-        img_str = req.image
-        if img_str.startswith('data:image'):
-            img_str = img_str.split(',')[1]
-            
-        img_bytes = base64.b64decode(img_str)
+        img_bytes = decode_image(req.image)
         detected_faces = extract_faces_from_image(img_bytes)
-        
+
         if len(detected_faces) == 0:
             return {"success": False, "error": "Không tìm thấy khuôn mặt nào"}
         if len(detected_faces) > 1:
@@ -228,7 +249,9 @@ async def extract_vector(req: ImageRequest):
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "cached_faces": len(cached_faces)}
+    with cache_lock:
+        count = len(cached_faces)
+    return {"status": "ok", "cached_faces": count, "threshold": MATCH_THRESHOLD}
 
 if __name__ == "__main__":
     import uvicorn

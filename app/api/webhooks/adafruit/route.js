@@ -1,5 +1,6 @@
 import { appendMetricHistory } from "../../../lib/metricHistory";
 import { upsertCurrentState } from "../../../lib/commands/commandRepository";
+import { safeEqual } from "../../../lib/http";
 
 export const runtime = "nodejs";
 
@@ -29,7 +30,7 @@ export async function POST(request) {
     }
 
     const providedSecret = searchParams.get("secret") || request.headers.get("x-webhook-secret");
-    if (providedSecret !== WEBHOOK_SECRET) {
+    if (!safeEqual(providedSecret, WEBHOOK_SECRET)) {
       return Response.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
@@ -47,7 +48,7 @@ export async function POST(request) {
 
     const value = body?.value;
 
-    if (!feedKey || value === undefined) {
+    if (!feedKey || value === undefined || value === null) {
       return Response.json(
         { success: false, error: "Thiếu feed_key hoặc value trong webhook payload." },
         { status: 400 }

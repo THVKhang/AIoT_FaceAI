@@ -3,11 +3,17 @@ import {
   buildResetPasswordError,
   resetPassword,
 } from "../../lib/passwordReset/resetPasswordService";
+import { resetPasswordLimiter } from "../../lib/rateLimit";
+import { getClientIp } from "../../lib/http";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
+    // Rate limit: 5 attempts per minute per IP (protects recovery codes from brute force)
+    const limit = resetPasswordLimiter.check(getClientIp(request));
+    if (!limit.ok) return limit.response;
+
     const body = await request.json();
     await resetPassword(body);
 

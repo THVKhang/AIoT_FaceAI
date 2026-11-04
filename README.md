@@ -120,23 +120,22 @@ cd AIoT_FaceAI
 
 ### Step 3: Create environment file
 
-Create `.env.local` at project root:
+Copy the template and fill in real values:
 
-```env
-DATABASE_URL=postgresql://<user>:<password>@<host>:5432/<db>?sslmode=require
-DB_SSL=true
-DB_SSL_REJECT_UNAUTHORIZED=false
-APP_BASE_URL=http://localhost:3000
-
-AIO_USERNAME=your_adafruit_username
-AIO_KEY=your_adafruit_key
-
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
-MAIL_FROM=your_email@gmail.com
+```bash
+cp .env.example .env
 ```
+
+`.env.example` documents every variable. The minimum you need:
+
+- `DATABASE_URL` (or `DB_HOST`/`DB_PORT`/`DB_NAME`/`DB_USER`/`DB_PASSWORD`)
+- `FACE_API_SECRET`: shared key between Next.js and the Python face service. Face API routes refuse every request (503) when it is missing.
+- `ADAFRUIT_WEBHOOK_SECRET`: required by `/api/webhooks/adafruit`.
+- `AIO_USERNAME`, `AIO_KEY`: Adafruit IO.
+- Mail settings (`RESEND_API_KEY` or `SMTP_*`, plus `MAIL_FROM`, `APP_BASE_URL`) for password reset.
+
+> In production (`npm start`) the session cookie has the `Secure` flag, so login only works over HTTPS or on `localhost`.
+> For a plain-HTTP LAN demo, set `COOKIE_SECURE=false`.
 
 ### Step 4: Install dependencies
 
@@ -198,6 +197,18 @@ In `package.json`:
 2. `npm run build`: production build.
 3. `npm run start`: run production build.
 4. `npm run db:init`: run full SQL migration pipeline.
+5. `npm test`: unit tests (Jest via `next/jest`, testing the real `app/lib` modules).
+6. `npm run lint:types`: TypeScript type check.
+7. `node scripts/set-admin.js <username>`: promote a user to admin.
+
+Docker (web + gateway + FastAPI face server):
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+The `faceai` container downloads the OpenCV/OpenFace models on first start and keeps them in a volume.
 
 ## 10. Production deployment
 
@@ -222,9 +233,15 @@ Recommended: Vercel + Supabase
 
 ## 12. Current security features
 
-1. Password hashing.
-2. Session token with expiration.
-3. Expiring password reset tokens.
+1. Password hashing (scrypt) and session tokens with expiration, `HttpOnly` + `Secure` (production) cookie.
+2. Expiring password reset tokens and recovery codes.
+3. Rate limiting: login 10/min, register 5/min, forgot-password 5/min, reset-password 5/min per IP.
+4. Roles: `admin` / `user`.
+   - Only admins can approve/revoke/delete faces and change thresholds.
+   - A face registered by a normal user is always `Pending`, so it cannot open the door until an admin approves it.
+5. Face API: `x-face-api-key` (constant-time comparison) or a valid session; biometric vectors are never returned to the browser.
+6. Adafruit webhook protected by `ADAFRUIT_WEBHOOK_SECRET`.
+7. In production, API errors do not expose internal database messages.
 
 ## 13. AI/ML expansion directions
 

@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { pool } from "../../lib/db";
 import { generateSessionToken, verifyPassword } from "../../lib/auth";
 import { loginLimiter } from "../../lib/rateLimit";
+import { errorDetail, getClientIp, setSessionCookie } from "../../lib/http";
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
     // Rate limit: 10 requests per minute per IP
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ip = getClientIp(request);
     const limit = loginLimiter.check(ip);
     if (!limit.ok) return limit.response;
 
@@ -53,6 +54,12 @@ export async function POST(request) {
 
     const sessionToken = generateSessionToken();
 
+    // Housekeeping: drop this user's expired/revoked sessions.
+    await pool.query(
+      `DELETE FROM auth_sessions WHERE user_id = $1 AND (expires_at <= CURRENT_TIMESTAMP OR revoked_at IS NOT NULL)`,
+      [user.id]
+    );
+
     await pool.query(
       `
         INSERT INTO auth_sessions (user_id, session_token, expires_at)
@@ -71,21 +78,16 @@ export async function POST(request) {
       },
     });
 
-    response.cookies.set("session", sessionToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+    setSessionCookie(response, sessionToken);
 
     return response;
   } catch (error) {
+    console.error("POST /api/login error:", error);
     return NextResponse.json(
       {
         success: false,
         message: "Lỗi đăng nhập",
-        error: error.message,
+        error: errorDetail(error),
       },
       { status: 500 }
     );

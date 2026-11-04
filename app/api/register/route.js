@@ -7,13 +7,17 @@ import {
   validatePasswordPolicy,
 } from "../../lib/auth";
 import { registerLimiter } from "../../lib/rateLimit";
+import { errorDetail, getClientIp, setSessionCookie } from "../../lib/http";
+
+const USERNAME_REGEX = /^[A-Za-z0-9_.-]{3,64}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
     // Rate limit: 5 requests per minute per IP
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ip = getClientIp(request);
     const limit = registerLimiter.check(ip);
     if (!limit.ok) return limit.response;
 
@@ -26,6 +30,20 @@ export async function POST(request) {
     if (!username || !email || !password) {
       return NextResponse.json(
         { success: false, message: "Vui lòng nhập tên đăng nhập, email và mật khẩu" },
+        { status: 400 }
+      );
+    }
+
+    if (!USERNAME_REGEX.test(username)) {
+      return NextResponse.json(
+        { success: false, message: "Tên đăng nhập 3-64 ký tự, chỉ gồm chữ, số, dấu . _ -" },
+        { status: 400 }
+      );
+    }
+
+    if (email.length > 160 || !EMAIL_REGEX.test(email)) {
+      return NextResponse.json(
+        { success: false, message: "Email không hợp lệ" },
         { status: 400 }
       );
     }
@@ -90,21 +108,22 @@ export async function POST(request) {
       },
     });
 
-    response.cookies.set("session", sessionToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
+    setSessionCookie(response, sessionToken);
 
     return response;
   } catch (error) {
+    if (error?.code === "23505") {
+      return NextResponse.json(
+        { success: false, message: "Tên đăng nhập hoặc email đã tồn tại" },
+        { status: 409 }
+      );
+    }
+    console.error("POST /api/register error:", error);
     return NextResponse.json(
       {
         success: false,
         message: "Đăng ký thất bại",
-        error: error.message,
+        error: errorDetail(error),
       },
       { status: 500 }
     );

@@ -215,7 +215,6 @@ __marimo__/
 __pycache__/
 node_modules/
 .next/
-package-lock.json
 .vercel
 .env*.local
 
@@ -234,3 +233,4 @@ ml/data/processed/
 ml/data/features/
 ml/experiments/
 ml/models/
+*.tsbuildinfo

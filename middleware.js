@@ -1,26 +1,39 @@
 import { NextResponse } from "next/server";
 
+// API routes that handle their own authentication (or are part of the auth flow).
+const PUBLIC_API_PREFIXES = [
+  "/api/login",
+  "/api/logout",
+  "/api/register",
+  "/api/forgot-password",
+  "/api/reset-password",
+  // Face AI service endpoints: authenticated by x-face-api-key or session inside the route
+  "/api/faces/upload",
+  "/api/faces/identify",
+  "/api/faces/identify-or-register",
+  // Adafruit IO webhook: authenticated by ADAFRUIT_WEBHOOK_SECRET inside the route
+  "/api/webhooks/adafruit",
+];
+
+const AUTH_PAGES = new Set(["/login", "/register", "/forgot-password", "/reset-password"]);
+
+function matchesPrefix(pathname, prefix) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
 export function middleware(request) {
-  const session = request.cookies.get("session")?.value;
-  const isLoggedIn = Boolean(session);
   const pathname = request.nextUrl.pathname;
 
-  const isLoginPage = pathname === "/login";
-  const isRegisterPage = pathname === "/register";
-  const isForgotPage = pathname === "/forgot-password";
-  const isResetPage = pathname === "/reset-password";
-  const isLoginApi = pathname.startsWith("/api/login");
-  const isLogoutApi = pathname.startsWith("/api/logout");
-  const isRegisterApi = pathname.startsWith("/api/register");
-  const isForgotApi = pathname.startsWith("/api/forgot-password");
-  const isResetApi = pathname.startsWith("/api/reset-password");
-  // Allow Face AI Python service to call these without session
-  const isFaceApi = pathname.startsWith("/api/faces/upload") || pathname.startsWith("/api/faces/identify");
-  if (isLoginApi || isLogoutApi || isRegisterApi || isForgotApi || isResetApi || isFaceApi) {
+  if (PUBLIC_API_PREFIXES.some((prefix) => matchesPrefix(pathname, prefix))) {
     return NextResponse.next();
   }
 
-  if (!isLoggedIn && !isLoginPage && !isRegisterPage && !isForgotPage && !isResetPage) {
+  // Note: this only checks that a session cookie exists (the Edge runtime has no DB access).
+  // Every protected API route validates the session against the database.
+  const isLoggedIn = Boolean(request.cookies.get("session")?.value);
+  const isAuthPage = AUTH_PAGES.has(pathname);
+
+  if (!isLoggedIn && !isAuthPage) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { success: false, message: "Vui lòng đăng nhập" },
@@ -28,10 +41,11 @@ export function middleware(request) {
       );
     }
 
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    return NextResponse.redirect(loginUrl);
   }
 
-  if (isLoggedIn && (isLoginPage || isRegisterPage || isForgotPage || isResetPage)) {
+  if (isLoggedIn && isAuthPage) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 

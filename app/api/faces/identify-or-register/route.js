@@ -1,69 +1,77 @@
 import { NextResponse } from 'next/server';
 import { pool } from '../../../lib/db';
 import { requireFaceApiAuth } from '../../../lib/faceApiAuth';
+import { normalizeVectors } from '../../../lib/faceMatching';
+import { fileToDataUrl } from '../../../lib/faceUpload';
+
+export const runtime = 'nodejs';
+
+const MAX_NAME_LENGTH = 100;
 
 /**
  * POST /api/faces/identify-or-register
- * 
+ *
  * Accepts a webcam photo upload with face_vector and optional name.
- * If name is provided, auto-approves the face as "Valid".
- * Otherwise saves as "Pending" for admin review.
+ * A named face is auto-approved as "Valid" only when the caller is an admin
+ * (session) or a trusted service (API key). Everyone else goes to "Pending"
+ * so an admin must approve before the face can open the door.
  */
 export async function POST(req) {
   try {
-    // Verify API key or session
     const auth = await requireFaceApiAuth(req);
     if (!auth.ok) return auth.response;
 
-
     const formData = await req.formData();
     const file = formData.get('file');
-    const faceVectorStr = formData.get('face_vector') || '[]';
-    const name = formData.get('name')?.toString()?.trim() || '';
+    const faceVectorStr = formData.get('face_vector');
+    const name = (formData.get('name')?.toString() || '').trim().slice(0, MAX_NAME_LENGTH);
 
-    if (!file) {
-      return NextResponse.json({ success: false, error: 'No image file provided' }, { status: 400 });
+    const image = await fileToDataUrl(file);
+    if (!image.ok) {
+      return NextResponse.json({ success: false, error: image.error, code: image.code }, { status: image.status });
     }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const vectors = normalizeVectors(faceVectorStr ? String(faceVectorStr) : '');
+    if (vectors.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'face_vector must be a JSON array of numbers (or array of arrays)', code: 'INVALID_VECTOR' },
+        { status: 400 }
+      );
+    }
 
-    // Convert to base64 data URL for storage
-    const base64Image = buffer.toString('base64');
-    const imageUrl = `data:${file.type || 'image/jpeg'};base64,${base64Image}`;
-
-    // If name is provided → auto-approve as Valid, otherwise Pending
-    const status = name && name !== 'Unknown' ? 'Valid' : 'Pending';
+    const canAutoApprove = auth.method === 'api-key' || auth.user?.role === 'admin';
+    const hasName = Boolean(name) && name !== 'Unknown';
+    const status = hasName && canAutoApprove ? 'Valid' : 'Pending';
     const displayName = name || 'Unknown';
 
     const result = await pool.query(
-      `INSERT INTO face_users (name, face_vector, image_url, status) 
+      `INSERT INTO face_users (name, face_vector, image_url, status)
        VALUES ($1, $2, $3, $4) RETURNING id`,
-      [displayName, faceVectorStr, imageUrl, status]
+      [displayName, JSON.stringify(vectors.length === 1 ? vectors[0] : vectors), image.imageUrl, status]
     );
 
     const newId = result.rows[0].id;
 
-    // Log the access event
     try {
       await pool.query(
-        `INSERT INTO access_logs (face_user_id, result, method) VALUES ($1, $2, 'browser-webcam')`,
-        [newId, status === 'Valid' ? 'success' : 'registered']
+        `INSERT INTO system_logs (event_name, source, severity, log_details)
+         VALUES ('FACE_REGISTERED', 'faceai', 'info', $1)`,
+        [`Face #${newId} "${displayName}" registered with status ${status} (${auth.method})`]
       );
     } catch (logErr) {
-      console.warn('Could not log access event:', logErr.message);
+      console.warn('Could not log registration event:', logErr.message);
     }
 
-    const message = status === 'Valid'
-      ? `✅ Đã đăng ký và phê duyệt "${displayName}" (ID #${newId})`
-      : `Ảnh đã được lưu (ID #${newId}). Hãy phê duyệt trong Pending Approvals.`;
+    let message;
+    if (status === 'Valid') {
+      message = `✅ Đã đăng ký và phê duyệt "${displayName}" (ID #${newId})`;
+    } else if (hasName) {
+      message = `Đã lưu "${displayName}" (ID #${newId}). Cần admin phê duyệt trước khi có hiệu lực.`;
+    } else {
+      message = `Ảnh đã được lưu (ID #${newId}). Hãy phê duyệt trong Pending Approvals.`;
+    }
 
-    return NextResponse.json({
-      success: true,
-      message,
-      id: newId,
-      status,
-    });
+    return NextResponse.json({ success: true, message, id: newId, status });
   } catch (error) {
     console.error('Webcam upload error:', error);
     return NextResponse.json({ success: false, error: 'Lỗi khi lưu ảnh webcam' }, { status: 500 });
